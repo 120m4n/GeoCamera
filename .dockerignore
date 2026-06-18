@@ -1,0 +1,20 @@
+# Dependencies — reinstalled by npm ci inside the builder stage
+node_modules/
+
+# Previous build output — regenerated inside Docker
+dist/
+
+# Dev-only files not needed for the web build
+.ssl/
+android/
+ios/
+
+# Git metadata
+.git/
+.gitignore
+
+# Documentation
+*.md
+
+# Claude Code project dir
+.claude/
