@@ -1,0 +1,32 @@
+{
+  "name": "geocamera",
+  "version": "1.0.0",
+  "description": "PWA local-first para captura de fotos con metadatos geográficos",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cap:sync": "npm run build && ./node_modules/.bin/cap sync",
+    "android": "npm run build && ./node_modules/.bin/cap sync && ./node_modules/.bin/cap open android",
+    "ios": "npm run build && ./node_modules/.bin/cap sync && ./node_modules/.bin/cap open ios",
+    "lint": "npx eslint src/",
+    "icons": "open icons/generate-icons.html"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "vite": "^8.0.16"
+  },
+  "dependencies": {
+    "@capacitor-community/camera-preview": "^8.0.1",
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/camera": "^8.2.0",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/geolocation": "^8.2.0",
+    "@capacitor/ios": "^8.4.0",
+    "open-location-code": "^1.0.3"
+  }
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <!-- PWA / iOS -->
+  <meta name="theme-color" content="#0B0E11">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GeoCamera">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/icon-192.svg">
+
+  <title>GeoCamera</title>
+  <link rel="stylesheet" href="/src/styles.css">
+
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- iOS install banner (shown only in mobile browser, not standalone) -->
+  <div id="ios-banner" style="
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #15191D;
+    border-top: 1px solid #2A3037;
+    padding: 14px 20px max(env(safe-area-inset-bottom), 14px);
+    font-size: 13px;
+    color: #8B919A;
+    z-index: 999;
+    text-align: center;
+    line-height: 1.5;
+  ">
+    Para instalar GeoCamera: toca <strong style="color:#F5F3EF">Compartir</strong> →
+    <strong style="color:#F5F3EF">Agregar a pantalla de inicio</strong>
+    <button onclick="document.getElementById('ios-banner').style.display='none'" style="
+      margin-left: 12px;
+      background: transparent;
+      border: 1px solid #2A3037;
+      border-radius: 8px;
+      color: #8B919A;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    ">✕</button>
+  </div>
+
+  <script type="module" src="/src/app.js"></script>
+  <script>
+    // Show iOS install hint only in Safari mobile, not in standalone mode
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    const dismissed = sessionStorage.getItem('ios-banner-dismissed');
+    if (isIOS && !isStandalone && !dismissed) {
+      document.getElementById('ios-banner').style.display = 'block';
+    }
+    document.querySelector('#ios-banner button')?.addEventListener('click', () => {
+      sessionStorage.setItem('ios-banner-dismissed', '1');
+    });
+  </script>
+</body>
+</html>
