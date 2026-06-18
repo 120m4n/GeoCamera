@@ -46,8 +46,8 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
-/* Screens fill the whole app shell */
-#app > * {
+/* Screens fill the whole app shell — toast excluded (it self-positions via shadow :host) */
+#app > *:not(geo-toast) {
   position: absolute;
   inset: 0;
 }

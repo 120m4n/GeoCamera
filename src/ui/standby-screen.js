@@ -2,50 +2,89 @@ const template = document.createElement('template');
 template.innerHTML = `
 <style>
   :host {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    display: block;
     position: absolute;
     inset: 0;
-    background: #0B0E11;
+    background: #07090C;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
-    gap: 20px;
+    overflow: hidden;
   }
-  .logo {
-    width: 96px;
-    height: 96px;
-    border-radius: 22px;
-    animation: breathe 3.2s ease-in-out infinite;
+
+  .splash {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
   }
+
+  /*
+   * Portrait (mobile vertical): imagen llena el alto, recorte mínimo lateral.
+   * object-position: center top ancla el logo/branding arriba — nunca se corta.
+   */
+  @media (orientation: portrait) {
+    .splash {
+      object-fit: cover;
+      object-position: center top;
+    }
+    .scrim { height: 22%; }
+  }
+
+  /*
+   * Landscape (mobile horizontal) y desktop: la imagen es retrato (9:16)
+   * en un contenedor apaisado — usar contain para mostrarla completa centrada.
+   * Las barras laterales oscuras (#07090C en :host) son intencionales.
+   */
+  @media (orientation: landscape) {
+    .splash {
+      object-fit: contain;
+      object-position: center center;
+    }
+    .scrim { height: 38%; }
+  }
+
+  /* Desktop ancho (>= 1024px): limitar ancho máximo para que no se vea diminuta */
+  @media (min-width: 1024px) and (orientation: landscape) {
+    .splash {
+      object-fit: contain;
+      object-position: center center;
+      /* El elemento ya ocupa inset:0; contain lo centra automáticamente */
+    }
+    .scrim { height: 28%; }
+  }
+
+  /* Scrim: gradiente en el tercio inferior, anima junto con el hint */
+  .scrim {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.65) 100%);
+    animation: breathe 3.4s ease-in-out infinite;
+    pointer-events: none;
+  }
+
   @keyframes breathe {
-    0%, 100% { opacity: 1;    transform: scale(1); }
-    50%       { opacity: 0.72; transform: scale(0.95); }
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
   }
-  .app-name {
-    font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: #F5F3EF;
-    letter-spacing: 0.4px;
-  }
+
   .hint {
     position: absolute;
-    bottom: max(env(safe-area-inset-bottom), 48px);
+    bottom: max(env(safe-area-inset-bottom, 0px), 32px);
+    left: 0; right: 0;
+    text-align: center;
     font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif;
     font-size: 13px;
-    color: #565C64;
-    animation: hint-fade 3.2s ease-in-out infinite;
-  }
-  @keyframes hint-fade {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.45; }
+    font-weight: 500;
+    color: rgba(245,243,239,0.75);
+    letter-spacing: 0.2px;
+    pointer-events: none;
+    animation: breathe 3.4s ease-in-out infinite;
   }
 </style>
-<img class="logo" src="/icons/icon-192.svg" alt="">
-<span class="app-name">GeoCamera</span>
+<img class="splash" src="/splash_image.webp" alt="" loading="eager">
+<div class="scrim"></div>
 <span class="hint">Toca para activar la cámara</span>
 `;
 
@@ -59,24 +98,11 @@ export class StandbyScreen extends HTMLElement {
       this.dispatchEvent(new CustomEvent('nav', { detail: 'camera', bubbles: true, composed: true }));
     });
 
-    this.shadowRoot.querySelector('.logo').addEventListener('error', (e) => {
-      e.target.replaceWith(this.#fallbackLogo());
+    // Fallback si WebP no carga (browser muy antiguo)
+    this.shadowRoot.querySelector('.splash').addEventListener('error', () => {
+      this.shadowRoot.querySelector('.splash').style.display = 'none';
+      this.style.background = '#0B0E11';
     });
-  }
-
-  #fallbackLogo() {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 192 192');
-    svg.classList.add('logo');
-    svg.innerHTML = `
-      <rect width="192" height="192" rx="40" fill="#15191D"/>
-      <circle cx="96" cy="90" r="46" fill="none" stroke="#2A3037" stroke-width="4"/>
-      <circle cx="96" cy="90" r="36" fill="none" stroke="#FF6A1A" stroke-width="3"/>
-      <circle cx="96" cy="90" r="22" fill="#FF6A1A" opacity="0.92"/>
-      <circle cx="96" cy="90" r="6" fill="#15191D"/>
-      <circle cx="148" cy="52" r="10" fill="#3DDC84"/>
-    `;
-    return svg;
   }
 }
 

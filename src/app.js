@@ -13,9 +13,13 @@ import { processQueue } from './sync.js';
 
 // ── App config state ──────────────────────────────────────────
 const appConfig = {
-  logoBlob: null,
-  showWatermark: true,
-  showLogoHeader: true,
+  logoBlob:        null,
+  showWatermark:   true,
+  showLogoHeader:  true,
+  logoPosition:    'bottom-right',
+  logoAlpha:       1.0,
+  stencilPosition: 'bottom',
+  stencilAlpha:    0.75,
 };
 
 // ── Router ───────────────────────────────────────────────────
@@ -46,6 +50,17 @@ function buildApp() {
 }
 
 let currentScreen = '';
+let _standbyTimer = null;
+
+function startStandbyTimer() {
+  clearTimeout(_standbyTimer);
+  _standbyTimer = setTimeout(() => navigateTo('standby'), 37_000);
+}
+
+function clearStandbyTimer() {
+  clearTimeout(_standbyTimer);
+  _standbyTimer = null;
+}
 
 function show(name) {
   for (const [key, el] of screenEls) {
@@ -70,6 +85,7 @@ function handleNav(e) {
 async function navigateTo(screen, params = {}) {
   switch (screen) {
     case 'standby':
+      clearStandbyTimer();
       screenEls.get('camera').stopCamera();
       show('standby');
       break;
@@ -78,9 +94,11 @@ async function navigateTo(screen, params = {}) {
       show('camera');
       screenEls.get('camera').startCamera();
       await refreshCounter();
+      startStandbyTimer();
       break;
 
     case 'list':
+      clearStandbyTimer();
       screenEls.get('camera').stopCamera();
       show('list');
       await screenEls.get('list').refresh();
@@ -92,6 +110,7 @@ async function navigateTo(screen, params = {}) {
       break;
 
     case 'settings': {
+      clearStandbyTimer();
       screenEls.get('camera').stopCamera();
       show('settings');
       const photos = await listPhotos();
@@ -109,12 +128,17 @@ async function handleCapture(e) {
   const { canvas } = e.detail;
   const fix = geo.lastFix;
 
+  clearStandbyTimer();
   show('review');
   screenEls.get('camera').stopCamera();
 
   await screenEls.get('review').setCapture(canvas, fix, {
-    logoBlob: appConfig.logoBlob,
-    showWatermark: appConfig.showWatermark,
+    logoBlob:        appConfig.logoBlob,
+    showWatermark:   appConfig.showWatermark,
+    logoPosition:    appConfig.logoPosition,
+    logoAlpha:       appConfig.logoAlpha,
+    stencilPosition: appConfig.stencilPosition,
+    stencilAlpha:    appConfig.stencilAlpha,
   });
 }
 
@@ -130,7 +154,7 @@ async function handleSave(e) {
     await refreshCounter();
   } catch (err) {
     console.error('Error al guardar:', err);
-    screenEls.get('toast').show('Error al guardar', 2000);
+    screenEls.get('toast').show('Error al guardar', 2000, 'error');
     show('camera');
     screenEls.get('camera').startCamera();
   }
@@ -148,8 +172,12 @@ async function handleLogoChanged() {
 }
 
 async function handleConfigChanged(e) {
-  if ('showWatermark' in e.detail) appConfig.showWatermark = e.detail.showWatermark;
-  if ('showLogoHeader' in e.detail) appConfig.showLogoHeader = e.detail.showLogoHeader;
+  if ('showWatermark'   in e.detail) appConfig.showWatermark   = e.detail.showWatermark;
+  if ('showLogoHeader'  in e.detail) appConfig.showLogoHeader  = e.detail.showLogoHeader;
+  if ('logoPosition'    in e.detail) appConfig.logoPosition    = e.detail.logoPosition;
+  if ('logoAlpha'       in e.detail) appConfig.logoAlpha       = e.detail.logoAlpha;
+  if ('stencilPosition' in e.detail) appConfig.stencilPosition = e.detail.stencilPosition;
+  if ('stencilAlpha'    in e.detail) appConfig.stencilAlpha    = e.detail.stencilAlpha;
 }
 
 // ── GPS updates → camera screen ───────────────────────────────
@@ -188,9 +216,13 @@ async function boot() {
   buildApp();
 
   // Load persisted config
-  appConfig.logoBlob = await getConfig('logoBlob');
-  appConfig.showWatermark = await getConfig('showWatermark') ?? true;
-  appConfig.showLogoHeader = await getConfig('showLogoHeader') ?? true;
+  appConfig.logoBlob        = await getConfig('logoBlob');
+  appConfig.showWatermark   = await getConfig('showWatermark')   ?? true;
+  appConfig.showLogoHeader  = await getConfig('showLogoHeader')  ?? true;
+  appConfig.logoPosition    = await getConfig('logoPosition')    ?? 'bottom-right';
+  appConfig.logoAlpha       = await getConfig('logoAlpha')       ?? 1.0;
+  appConfig.stencilPosition = await getConfig('stencilPosition') ?? 'bottom';
+  appConfig.stencilAlpha    = await getConfig('stencilAlpha')    ?? 0.75;
 
   // Wire global event delegation
   document.addEventListener('nav', handleNav);

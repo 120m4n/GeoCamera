@@ -3,62 +3,67 @@ template.innerHTML = `
 <style>
   :host {
     position: fixed;
-    top: 50%;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
     left: 50%;
-    transform: translate(-50%, -50%) scale(0.9);
-    background: rgba(21,25,29,0.95);
-    border: 1px solid #3DDC84;
-    border-radius: 16px;
-    padding: 22px 32px;
+    transform: translateX(-50%) translateY(-140%);
+    background: rgba(21,25,29,0.96);
+    border: 1px solid rgba(61,220,132,0.38);
+    border-radius: 100px;
+    padding: 10px 18px 10px 13px;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    z-index: 100;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.18s ease;
+    z-index: 200;
+    white-space: nowrap;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.45);
   }
   :host(.show) {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translateX(-50%) translateY(0);
   }
-  .check {
-    width: 44px; height: 44px;
+  :host(.error) {
+    border-color: rgba(255,106,26,0.45);
+  }
+  .dot {
+    width: 7px; height: 7px;
     border-radius: 50%;
     background: #3DDC84;
-    color: #0B0E11;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
+    flex-shrink: 0;
   }
+  :host(.error) .dot { background: #FF6A1A; }
   .label {
-    font-size: 14px;
-    color: #F5F3EF;
+    font-size: 13px;
     font-weight: 600;
-    text-align: center;
-    max-width: 180px;
+    color: #F5F3EF;
+    font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif;
+    letter-spacing: 0.1px;
   }
 </style>
-<div class="check">✓</div>
-<div class="label" id="label">Guardada</div>
+<div class="dot"></div>
+<span class="label" id="label">Guardada</span>
 `;
 
 export class GeoToast extends HTMLElement {
+  #timer = null;
+
   connectedCallback() {
     if (this.shadowRoot) return;
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.appendChild(template.content.cloneNode(true));
   }
 
-  /** @param {string} message @param {number} [duration=1300] */
-  show(message, duration = 1300) {
+  /** @param {string} message @param {number} [duration=1300] @param {'success'|'error'} [type='success'] */
+  show(message, duration = 1300, type = 'success') {
     this.shadowRoot.getElementById('label').textContent = message;
+    this.classList.toggle('error', type === 'error');
     this.classList.add('show');
-    setTimeout(() => this.classList.remove('show'), duration);
+    clearTimeout(this.#timer);
+    this.#timer = setTimeout(() => this.classList.remove('show'), duration);
   }
 }
 

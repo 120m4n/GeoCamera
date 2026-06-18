@@ -81,6 +81,12 @@ template.innerHTML = `
     align-items: flex-start;
     z-index: 5;
   }
+  .top-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
   .gps-badge {
     display: flex;
     align-items: center;
@@ -232,6 +238,9 @@ template.innerHTML = `
   </div>
 
   <div class="top-bar">
+    <div class="top-left">
+      <div class="icon-btn" id="standbyBtn" title="Standby">⏻</div>
+    </div>
     <div class="gps-badge">
       <div class="gps-dot" id="gpsDot"></div>
       <span id="gpsText">Buscando GPS…</span>
@@ -272,6 +281,7 @@ export class CameraScreen extends HTMLElement {
     const sr = this.shadowRoot;
     sr.getElementById('shutterBtn').addEventListener('click', () => this.#onShutter());
     sr.getElementById('flipBtn').addEventListener('click', () => this.#onFlip());
+    sr.getElementById('standbyBtn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('nav', { detail: 'standby', bubbles: true, composed: true })));
     sr.getElementById('listBtn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('nav', { detail: 'list', bubbles: true, composed: true })));
     sr.getElementById('galleryBtn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('nav', { detail: 'list', bubbles: true, composed: true })));
     sr.getElementById('settingsBtn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('nav', { detail: 'settings', bubbles: true, composed: true })));
