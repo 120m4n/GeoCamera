@@ -80,6 +80,8 @@ template.innerHTML = `
 `;
 
 export class DetailScreen extends HTMLElement {
+  #thumbUrl = null;
+
   connectedCallback() {
     if (this.shadowRoot) return;
     this.attachShadow({ mode: 'open' });
@@ -89,6 +91,10 @@ export class DetailScreen extends HTMLElement {
     );
   }
 
+  disconnectedCallback() {
+    if (this.#thumbUrl) { URL.revokeObjectURL(this.#thumbUrl); this.#thumbUrl = null; }
+  }
+
   async load(photoId) {
     const photo = await getPhoto(photoId);
     if (!photo) return;
@@ -96,7 +102,9 @@ export class DetailScreen extends HTMLElement {
     const img = this.shadowRoot.getElementById('thumb');
     const meta = this.shadowRoot.getElementById('meta');
 
-    img.src = URL.createObjectURL(photo.thumbnailBlob);
+    if (this.#thumbUrl) URL.revokeObjectURL(this.#thumbUrl);
+    this.#thumbUrl = URL.createObjectURL(photo.thumbnailBlob);
+    img.src = this.#thumbUrl;
     this.shadowRoot.getElementById('subtitle').textContent = formatDate(photo.capturedAt);
 
     const rows = [

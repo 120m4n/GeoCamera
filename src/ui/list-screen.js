@@ -1,4 +1,5 @@
-import { listPhotos } from '../db.js';
+import { listPhotos, deletePhoto, deletePhotos, updatePhoto } from '../db.js';
+import './image-picker.js';
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -17,6 +18,11 @@ template.innerHTML = `
     justify-content: space-between;
     border-bottom: 1px solid #2A3037;
     flex-shrink: 0;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
   .header h1 {
     font-size: 17px;
@@ -45,138 +51,172 @@ template.innerHTML = `
     user-select: none;
     -webkit-user-select: none;
   }
-  .grid {
-    flex: 1;
-    overflow-y: auto;
-    padding: 14px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    align-content: start;
-  }
-  .cell {
-    aspect-ratio: 1;
-    border-radius: 10px;
-    background: #15191D;
+  .select-btn {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 16px;
+    background: transparent;
     border: 1px solid #2A3037;
-    overflow: hidden;
+    color: #8B919A;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
     cursor: pointer;
-    position: relative;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .cell img {
+  .select-btn.active {
+    background: rgba(255,106,26,0.12);
+    border-color: #FF6A1A;
+    color: #FF6A1A;
+  }
+
+  /* Dar al picker todo el espacio restante para que su scroll funcione */
+  geo-image-picker {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Action bar — visible only in selection mode */
+  .action-bar {
+    display: none;
+    padding: 12px 18px;
+    padding-bottom: max(env(safe-area-inset-bottom), 20px);
+    background: #0B0E11;
+    border-top: 1px solid #2A3037;
+    flex-shrink: 0;
+  }
+  .action-bar.visible { display: block; }
+  .trash-btn {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .cell-time {
-    position: absolute;
-    bottom: 5px; left: 6px; right: 6px;
-    font-size: 9.5px;
-    font-family: 'JetBrains Mono', monospace;
-    color: rgba(245,243,239,0.85);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-    pointer-events: none;
-  }
-  .empty {
-    grid-column: 1 / -1;
+    height: 50px;
+    border-radius: 14px;
+    background: rgba(220,53,69,0.12);
+    border: 1px solid rgba(220,53,69,0.35);
+    color: #ff6b6b;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    padding: 48px 24px;
-    text-align: center;
-    color: #565C64;
+    gap: 8px;
+    transition: background 0.15s, opacity 0.15s;
+    user-select: none;
+    -webkit-user-select: none;
   }
-  .empty p { font-size: 14px; line-height: 1.5; }
-  .empty .icon { font-size: 36px; opacity: 0.4; }
-  .empty button {
-    padding: 10px 20px;
-    border-radius: 10px;
-    background: #15191D;
-    border: 1px solid #2A3037;
-    color: #F5F3EF;
-    font-size: 13px;
-    cursor: pointer;
-    font-family: inherit;
-  }
+  .trash-btn:active { background: rgba(220,53,69,0.25); }
+  .trash-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 <div class="header">
-  <div>
-    <h1>Capturas recientes</h1>
-    <div class="sub" id="subtitle">0 de 23 · FIFO local</div>
+  <div class="header-left">
+    <div class="back-btn" id="backBtn">←</div>
+    <div>
+      <h1>Capturas recientes</h1>
+      <div class="sub" id="subtitle">0 de 23 · FIFO local</div>
+    </div>
   </div>
-  <div class="back-btn" id="backBtn">←</div>
+  <button class="select-btn" id="selectBtn">Seleccionar</button>
 </div>
-<div class="grid" id="grid"></div>
+<geo-image-picker id="picker"></geo-image-picker>
+<div class="action-bar" id="actionBar">
+  <button class="trash-btn" id="trashBtn" disabled>🗑 Eliminar seleccionadas (0)</button>
+</div>
 `;
 
 export class ListScreen extends HTMLElement {
+  #selectionMode = false;
+
   connectedCallback() {
     if (this.shadowRoot) return;
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.appendChild(template.content.cloneNode(true));
-    this.shadowRoot.getElementById('backBtn').addEventListener('click', () =>
-      this.dispatchEvent(new CustomEvent('nav', { detail: 'camera', bubbles: true, composed: true }))
-    );
+
+    this.shadowRoot.getElementById('backBtn').addEventListener('click', () => {
+      if (this.#selectionMode) {
+        this.#exitSelectionMode();
+      } else {
+        this.dispatchEvent(new CustomEvent('nav', { detail: 'camera', bubbles: true, composed: true }));
+      }
+    });
+
+    this.shadowRoot.getElementById('selectBtn').addEventListener('click', () => {
+      if (this.#selectionMode) {
+        this.#exitSelectionMode();
+      } else {
+        this.#enterSelectionMode();
+      }
+    });
+
+    this.shadowRoot.getElementById('picker').addEventListener('photo-select', (e) => {
+      this.dispatchEvent(new CustomEvent('nav', {
+        detail: { screen: 'detail', photoId: e.detail.photoId },
+        bubbles: true, composed: true,
+      }));
+    });
+
+    this.shadowRoot.getElementById('picker').addEventListener('photo-delete', async (e) => {
+      await deletePhoto(e.detail.photoId);
+      await this.refresh();
+    });
+
+    this.shadowRoot.getElementById('picker').addEventListener('photo-favorite', async (e) => {
+      await updatePhoto(e.detail.photoId, { isFavorite: e.detail.isFavorite });
+      await this.refresh();
+    });
+
+    this.shadowRoot.getElementById('picker').addEventListener('selection-change', (e) => {
+      this.#updateTrashBtn(e.detail.selectedIds.length);
+    });
+
+    this.shadowRoot.getElementById('trashBtn').addEventListener('click', () => this.#deleteSelected());
   }
 
   async refresh() {
     const photos = await listPhotos();
-    const grid = this.shadowRoot.getElementById('grid');
-    const subtitle = this.shadowRoot.getElementById('subtitle');
-    subtitle.textContent = `${photos.length} de 23 · FIFO local`;
-    grid.innerHTML = '';
-
-    if (photos.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.innerHTML = `
-        <div class="icon">📷</div>
-        <p>Aún no hay capturas.<br>Vuelve a la cámara y registra la primera.</p>
-        <button id="goCamera">Ir a la cámara</button>
-      `;
-      empty.querySelector('#goCamera').addEventListener('click', () =>
-        this.dispatchEvent(new CustomEvent('nav', { detail: 'camera', bubbles: true, composed: true }))
-      );
-      grid.appendChild(empty);
-      return;
-    }
-
-    for (const photo of photos) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-
-      const url = URL.createObjectURL(photo.thumbnailBlob);
-      const img = document.createElement('img');
-      img.src = url;
-      img.alt = photo.capturedAt;
-      img.onload = () => {}; // URL stays alive as long as img is in DOM
-
-      const timeLabel = document.createElement('div');
-      timeLabel.className = 'cell-time';
-      timeLabel.textContent = formatTime(photo.capturedAt);
-
-      cell.appendChild(img);
-      cell.appendChild(timeLabel);
-      cell.addEventListener('click', () => {
-        this.dispatchEvent(new CustomEvent('nav', {
-          detail: { screen: 'detail', photoId: photo.id },
-          bubbles: true,
-          composed: true,
-        }));
-      });
-
-      grid.appendChild(cell);
+    this.shadowRoot.getElementById('subtitle').textContent = `${photos.length} de 23 · FIFO local`;
+    this.shadowRoot.getElementById('picker').photos = photos;
+    if (this.#selectionMode) {
+      this.#updateTrashBtn(this.shadowRoot.getElementById('picker').selectedIds.length);
     }
   }
-}
 
-function formatTime(isoStr) {
-  const d = new Date(isoStr);
-  const pad = n => String(n).padStart(2, '0');
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // ── Selection mode ───────────────────────────────────────────
+
+  #enterSelectionMode() {
+    this.#selectionMode = true;
+    this.shadowRoot.getElementById('picker').selectionMode = true;
+    this.shadowRoot.getElementById('selectBtn').textContent = 'Cancelar';
+    this.shadowRoot.getElementById('selectBtn').classList.add('active');
+    this.shadowRoot.getElementById('actionBar').classList.add('visible');
+    this.#updateTrashBtn(0);
+  }
+
+  #exitSelectionMode() {
+    this.#selectionMode = false;
+    this.shadowRoot.getElementById('picker').selectionMode = false;
+    this.shadowRoot.getElementById('selectBtn').textContent = 'Seleccionar';
+    this.shadowRoot.getElementById('selectBtn').classList.remove('active');
+    this.shadowRoot.getElementById('actionBar').classList.remove('visible');
+  }
+
+  async #deleteSelected() {
+    const picker = this.shadowRoot.getElementById('picker');
+    const ids = picker.selectedIds;
+    if (ids.length === 0) return;
+    await deletePhotos(ids);
+    this.#exitSelectionMode();
+    await this.refresh();
+  }
+
+  #updateTrashBtn(count) {
+    const btn = this.shadowRoot.getElementById('trashBtn');
+    btn.textContent = `🗑 Eliminar seleccionadas (${count})`;
+    btn.disabled = count === 0;
+  }
 }
 
 customElements.define('geo-list-screen', ListScreen);

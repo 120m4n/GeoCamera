@@ -268,6 +268,8 @@ template.innerHTML = `
 
 export class CameraScreen extends HTMLElement {
   #initialized = false;
+  #startSeq = 0;
+  #pressedTimer = null;
 
   connectedCallback() {
     if (this.#initialized) return;
@@ -289,6 +291,7 @@ export class CameraScreen extends HTMLElement {
   }
 
   async startCamera() {
+    const seq = ++this.#startSeq;
     const sr = this.shadowRoot;
     const video = sr.querySelector('video');
     const permError = sr.getElementById('permError');
@@ -304,6 +307,10 @@ export class CameraScreen extends HTMLElement {
     // are fully settled before any camera API is touched. Prevents signal 9
     // watchdog kills on iOS during app launch.
     await new Promise(r => requestAnimationFrame(r));
+
+    // stopCamera() was called while waiting — abort to avoid starting camera
+    // after navigation away.
+    if (this.#startSeq !== seq) return;
 
     try {
       await camera.start(video);
@@ -340,6 +347,7 @@ export class CameraScreen extends HTMLElement {
   }
 
   stopCamera() {
+    this.#startSeq++;
     camera.stop();
   }
 
@@ -377,7 +385,8 @@ export class CameraScreen extends HTMLElement {
     const btn = this.shadowRoot.getElementById('shutterBtn');
     if (btn.classList.contains('disabled')) return;
     btn.classList.add('pressed', 'disabled');
-    setTimeout(() => btn.classList.remove('pressed'), 200);
+    clearTimeout(this.#pressedTimer);
+    this.#pressedTimer = setTimeout(() => btn.classList.remove('pressed'), 200);
     try {
       const video = this.shadowRoot.querySelector('video');
       const captureCanvas = await camera.capture(video);

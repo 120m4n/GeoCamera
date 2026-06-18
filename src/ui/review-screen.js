@@ -178,6 +178,7 @@ export class ReviewScreen extends HTMLElement {
       bubbles: true,
       composed: true,
     }));
+    this.#canvas = null;
   }
 }
 

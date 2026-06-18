@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Capacitor native platforms
+# Regenerate: npx cap add ios / npx cap add android
+android/
+ios/
+
+# Local HTTPS dev certs (not source — regenerate with mkcert)
+.ssl/
+
+# Design & architecture planning docs (not source code)
+GeoCamera-Diseno-UXUI.md
+GeoCamera-Plan-Arquitectura.md
+
+# Development mock
+geocamera-mock.html
+
+# Root-level icon helpers — source SVGs live in public/icons/
+icons/
+
+# Splash source PNG — converted WebP is at public/splash_image.webp
+splash_image.png

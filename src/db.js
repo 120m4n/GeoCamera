@@ -94,6 +94,31 @@ export async function deletePhoto(id) {
   return promisify(tx(STORE_PHOTOS, 'readwrite').delete(id));
 }
 
+/**
+ * Merges patch into an existing photo record.
+ * Fields not in patch are left unchanged.
+ * @param {string} id
+ * @param {Partial<PhotoEntry>} patch
+ */
+export async function updatePhoto(id, patch) {
+  await openDB();
+  const store = tx(STORE_PHOTOS, 'readwrite');
+  const current = await promisify(store.get(id));
+  if (!current) return;
+  return promisify(tx(STORE_PHOTOS, 'readwrite').put({ ...current, ...patch }));
+}
+
+/**
+ * Deletes multiple photos by id. Errors on individual deletes are ignored.
+ * @param {string[]} ids
+ */
+export async function deletePhotos(ids) {
+  await openDB();
+  for (const id of ids) {
+    await promisify(tx(STORE_PHOTOS, 'readwrite').delete(id)).catch(() => {});
+  }
+}
+
 // ── Config store ──────────────────────────────────────────────
 
 /**

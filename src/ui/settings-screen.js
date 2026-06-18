@@ -301,11 +301,17 @@ template.innerHTML = `
 `;
 
 export class SettingsScreen extends HTMLElement {
+  #logoUrl = null;
+
   connectedCallback() {
     if (this.shadowRoot) return;
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.appendChild(template.content.cloneNode(true));
     this.#bind();
+  }
+
+  disconnectedCallback() {
+    if (this.#logoUrl) { URL.revokeObjectURL(this.#logoUrl); this.#logoUrl = null; }
   }
 
   #bind() {
@@ -400,10 +406,12 @@ export class SettingsScreen extends HTMLElement {
   #renderLogo(blob) {
     const preview  = this.shadowRoot.getElementById('logoPreview');
     const clearBtn = this.shadowRoot.getElementById('clearBtn');
+    if (this.#logoUrl) { URL.revokeObjectURL(this.#logoUrl); this.#logoUrl = null; }
     preview.innerHTML = '';
     if (blob) {
       const img = document.createElement('img');
-      img.src = URL.createObjectURL(blob);
+      this.#logoUrl = URL.createObjectURL(blob);
+      img.src = this.#logoUrl;
       img.alt = 'Logo';
       preview.appendChild(img);
       clearBtn.style.display = '';
