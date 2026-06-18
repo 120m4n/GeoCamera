@@ -376,8 +376,8 @@ export class CameraScreen extends HTMLElement {
     if (!good) warning.textContent = `Precisión GPS baja (±${fix.accuracy} m) — puedes capturar igual`;
   }
 
-  updateCounter(count) {
-    this.shadowRoot.getElementById('counterBadge').textContent = `${count}/23`;
+  updateCounter(count, max) {
+    this.shadowRoot.getElementById('counterBadge').textContent = `${count}/${max}`;
     this.shadowRoot.getElementById('listBtn').style.opacity = count > 0 ? '1' : '0.5';
   }
 

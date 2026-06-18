@@ -20,7 +20,7 @@ GeoCamera-Plan-Arquitectura.md
 geocamera-mock.html
 
 # Root-level icon helpers — source SVGs live in public/icons/
-icons/
+/icons/
 
 # Splash source PNG — converted WebP is at public/splash_image.webp
 splash_image.png

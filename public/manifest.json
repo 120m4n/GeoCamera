@@ -1,14 +1,41 @@
 {
+  "id": "https://geocam.sidis-ingenieria.com/",
   "name": "GeoCamera",
   "short_name": "GeoCamera",
   "description": "Captura fotos con metadatos geográficos embebidos. Local-first, sin backend.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0B0E11",
   "theme_color": "#0B0E11",
   "lang": "es",
+  "prefer_related_applications": false,
   "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/icons/icon-192.svg",
       "sizes": "192x192",
@@ -19,9 +46,17 @@
       "src": "/icons/icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "src": "/icons/screenshot-mobile.png",
+      "sizes": "941x1672",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Captura geoetiquetada en campo"
+    }
+  ],
   "categories": ["utilities", "productivity"]
 }

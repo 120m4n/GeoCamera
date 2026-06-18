@@ -2,8 +2,11 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 import { addPhoto } from './db.js';
 
-const THUMBNAIL_MAX_PX = 300;
-const THUMBNAIL_QUALITY = 0.72;
+// 1024 px max dimension: ~120–180 KB JPEG per thumbnail.
+// 6 thumbnails × ~150 KB = ~900 KB peak in-memory blob budget — safely below
+// Safari's threshold before it starts evicting blobs under memory pressure.
+const THUMBNAIL_MAX_PX = 1024;
+const THUMBNAIL_QUALITY = 0.82;
 const FULL_QUALITY = 0.92;
 
 /**
@@ -18,12 +21,15 @@ export async function saveCapture(canvas, fix) {
   const ts = fix ? new Date(fix.ts) : new Date();
   const filename = buildFilename(ts, fix);
 
+  // Thumbnail first: scaled-down canvas is small and quick to encode.
   const thumbBlob = await canvasToBlob(
     scaledCanvas(canvas, THUMBNAIL_MAX_PX),
     'image/jpeg',
     THUMBNAIL_QUALITY
   );
 
+  // Full-res encode → file save → drop reference so iOS GC can collect the
+  // large blob before the next capture cycle begins.
   const fullBlob = await canvasToBlob(canvas, 'image/jpeg', FULL_QUALITY);
   await saveFile(fullBlob, filename);
 
@@ -49,8 +55,6 @@ export async function saveCapture(canvas, fix) {
 async function saveFile(blob, filename) {
   if (Capacitor.isNativePlatform()) {
     const base64 = await blobToBase64(blob);
-    // Android writes to external storage so the photo appears in the gallery.
-    // iOS writes to Documents (accessible via Files app); no direct gallery API in Capacitor.
     const directory = Capacitor.getPlatform() === 'android'
       ? Directory.External
       : Directory.Documents;
@@ -61,7 +65,7 @@ async function saveFile(blob, filename) {
       recursive: true,
     });
   } else {
-    triggerWebDownload(blob, filename);
+    await triggerWebSave(blob, filename);
   }
 }
 
@@ -73,7 +77,20 @@ function buildFilename(ts, fix) {
   return `geocamera_${datePart}_${timePart}_${code}.jpg`;
 }
 
-function triggerWebDownload(blob, filename) {
+async function triggerWebSave(blob, filename) {
+  // iOS Safari: <a download> opens the file in-browser instead of saving.
+  // Web Share API (Level 2) triggers the native share sheet → "Guardar en Archivos" / "Guardar imagen".
+  const file = new File([blob], filename, { type: 'image/jpeg' });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return; // user dismissed the sheet intentionally
+      // Other errors (e.g. share not allowed in this context) fall through to <a download>
+    }
+  }
+  // Desktop / Android Chrome fallback
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

@@ -202,17 +202,8 @@ export class ImagePicker extends HTMLElement {
 
     // Action overlay (top)
     const overlay = document.createElement('geo-photo-overlay');
-    overlay.favorite = !!(photo.isFavorite);
     overlay.selected = isSelected;
     overlay.selectionMode = this.#selectionMode;
-
-    overlay.addEventListener('overlay-favorite', (e) => {
-      e.stopPropagation();
-      this.dispatchEvent(new CustomEvent('photo-favorite', {
-        detail: { photoId: photo.id, isFavorite: !photo.isFavorite },
-        bubbles: true, composed: true,
-      }));
-    });
 
     overlay.addEventListener('overlay-delete', (e) => {
       e.stopPropagation();

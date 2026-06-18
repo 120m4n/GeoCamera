@@ -8,7 +8,7 @@ import './ui/toast.js';
 import { App } from '@capacitor/app';
 import { geo } from './geo.js';
 import { saveCapture } from './downloader.js';
-import { listPhotos, getConfig } from './db.js';
+import { listPhotos, getConfig, FIFO_MAX } from './db.js';
 import { processQueue } from './sync.js';
 
 // ── App config state ──────────────────────────────────────────
@@ -148,10 +148,13 @@ async function handleSave(e) {
   try {
     await saveCapture(canvas, fix);
     const photos = await listPhotos();
+    // Sync list picker immediately: revokes evicted thumbnail blob URL (FIFO eviction)
+    // so the old blob is released before the next capture cycle starts.
+    await screenEls.get('list').refresh(photos);
     show('camera');
-    screenEls.get('toast').show(`Guardada — ${photos.length}/23`);
+    screenEls.get('toast').show(`Guardada — ${photos.length}/${FIFO_MAX}`);
     screenEls.get('camera').startCamera();
-    await refreshCounter();
+    screenEls.get('camera').updateCounter(photos.length, FIFO_MAX);
   } catch (err) {
     console.error('Error al guardar:', err);
     screenEls.get('toast').show('Error al guardar', 2000, 'error');
@@ -194,7 +197,7 @@ geo.addEventListener('error', (e) => {
 
 async function refreshCounter() {
   const photos = await listPhotos();
-  screenEls.get('camera').updateCounter(photos.length);
+  screenEls.get('camera').updateCounter(photos.length, FIFO_MAX);
 }
 
 // ── iOS / sync on resume ──────────────────────────────────────

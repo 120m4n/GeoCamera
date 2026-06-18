@@ -1,4 +1,4 @@
-import { listPhotos, deletePhoto, deletePhotos, updatePhoto } from '../db.js';
+import { listPhotos, deletePhoto, deletePhotos, FIFO_MAX } from '../db.js';
 import './image-picker.js';
 
 const template = document.createElement('template');
@@ -116,7 +116,7 @@ template.innerHTML = `
     <div class="back-btn" id="backBtn">←</div>
     <div>
       <h1>Capturas recientes</h1>
-      <div class="sub" id="subtitle">0 de 23 · FIFO local</div>
+      <div class="sub" id="subtitle">0 de 6 · FIFO local</div>
     </div>
   </div>
   <button class="select-btn" id="selectBtn">Seleccionar</button>
@@ -163,11 +163,6 @@ export class ListScreen extends HTMLElement {
       await this.refresh();
     });
 
-    this.shadowRoot.getElementById('picker').addEventListener('photo-favorite', async (e) => {
-      await updatePhoto(e.detail.photoId, { isFavorite: e.detail.isFavorite });
-      await this.refresh();
-    });
-
     this.shadowRoot.getElementById('picker').addEventListener('selection-change', (e) => {
       this.#updateTrashBtn(e.detail.selectedIds.length);
     });
@@ -175,9 +170,10 @@ export class ListScreen extends HTMLElement {
     this.shadowRoot.getElementById('trashBtn').addEventListener('click', () => this.#deleteSelected());
   }
 
-  async refresh() {
-    const photos = await listPhotos();
-    this.shadowRoot.getElementById('subtitle').textContent = `${photos.length} de 23 · FIFO local`;
+  /** @param {import('../db.js').PhotoEntry[]} [photosOverride] */
+  async refresh(photosOverride) {
+    const photos = photosOverride ?? await listPhotos();
+    this.shadowRoot.getElementById('subtitle').textContent = `${photos.length} de ${FIFO_MAX} · FIFO local`;
     this.shadowRoot.getElementById('picker').photos = photos;
     if (this.#selectionMode) {
       this.#updateTrashBtn(this.shadowRoot.getElementById('picker').selectedIds.length);

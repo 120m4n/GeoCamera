@@ -33,10 +33,6 @@ template.innerHTML = `
   }
   .btn:active { transform: scale(0.88); }
 
-  /* Favorite button */
-  .btn-fav        { color: #565C64; }
-  .btn-fav.active { color: #FFC247; background: rgba(255,194,71,0.18); }
-
   /* Checkbox (selection mode) */
   .btn-check {
     color: #565C64;
@@ -51,13 +47,12 @@ template.innerHTML = `
   .btn-del { color: #8B919A; }
   .btn-del:active { background: rgba(220,53,69,0.3); color: #ff6b6b; }
 </style>
-<button class="btn btn-fav"   id="favBtn"   aria-label="Favorito">☆</button>
+<button class="btn btn-check" id="selBtn"   aria-label="Seleccionar" style="display:none">○</button>
 <button class="btn btn-del"   id="delBtn"   aria-label="Eliminar">✕</button>
 `;
 
 export class PhotoOverlay extends HTMLElement {
   #selectionMode = false;
-  #favorite = false;
   #selected = false;
 
   connectedCallback() {
@@ -65,55 +60,38 @@ export class PhotoOverlay extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.appendChild(template.content.cloneNode(true));
 
-    this.shadowRoot.getElementById('favBtn').addEventListener('click', (e) => {
+    this.shadowRoot.getElementById('selBtn').addEventListener('click', (e) => {
       e.stopPropagation();
-      if (this.#selectionMode) {
-        this.#dispatchSelect();
-      } else {
-        this.dispatchEvent(new CustomEvent('overlay-favorite', { bubbles: true, composed: true }));
-      }
+      this.dispatchEvent(new CustomEvent('overlay-select', { bubbles: true, composed: true }));
     });
 
     this.shadowRoot.getElementById('delBtn').addEventListener('click', (e) => {
       e.stopPropagation();
       this.dispatchEvent(new CustomEvent('overlay-delete', { bubbles: true, composed: true }));
     });
+
+    this.#syncSelBtn();
   }
 
   get selectionMode() { return this.#selectionMode; }
   set selectionMode(v) {
     this.#selectionMode = !!v;
-    this.#syncFavBtn();
-  }
-
-  get favorite() { return this.#favorite; }
-  set favorite(v) {
-    this.#favorite = !!v;
-    this.#syncFavBtn();
+    this.#syncSelBtn();
   }
 
   get selected() { return this.#selected; }
   set selected(v) {
     this.#selected = !!v;
-    this.#syncFavBtn();
+    this.#syncSelBtn();
   }
 
-  #dispatchSelect() {
-    this.dispatchEvent(new CustomEvent('overlay-select', { bubbles: true, composed: true }));
-  }
-
-  #syncFavBtn() {
+  #syncSelBtn() {
     if (!this.shadowRoot) return;
-    const btn = this.shadowRoot.getElementById('favBtn');
-    if (this.#selectionMode) {
-      btn.className = 'btn btn-check' + (this.#selected ? ' active' : '');
-      btn.setAttribute('aria-label', this.#selected ? 'Deseleccionar' : 'Seleccionar');
-      btn.textContent = this.#selected ? '●' : '○';
-    } else {
-      btn.className = 'btn btn-fav' + (this.#favorite ? ' active' : '');
-      btn.setAttribute('aria-label', this.#favorite ? 'Quitar favorito' : 'Favorito');
-      btn.textContent = this.#favorite ? '★' : '☆';
-    }
+    const btn = this.shadowRoot.getElementById('selBtn');
+    btn.style.display = this.#selectionMode ? '' : 'none';
+    btn.className = 'btn btn-check' + (this.#selected ? ' active' : '');
+    btn.setAttribute('aria-label', this.#selected ? 'Deseleccionar' : 'Seleccionar');
+    btn.textContent = this.#selected ? '●' : '○';
   }
 }
 

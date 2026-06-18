@@ -2,7 +2,7 @@ const DB_NAME = 'geocamera';
 const DB_VERSION = 1;
 const STORE_PHOTOS = 'photos_index';
 const STORE_CONFIG = 'config';
-const FIFO_MAX = 23;
+export const FIFO_MAX = 6;
 
 /** @typedef {{ id: string, filename: string, thumbnailBlob: Blob, latitude: number, longitude: number, accuracyMeters: number, plusCode: string, capturedAt: string, syncStatus: 'local'|'pending'|'synced'|'error' }} PhotoEntry */
 
@@ -39,7 +39,7 @@ function promisify(req) {
 }
 
 /**
- * Adds a photo to the index, enforcing FIFO-23.
+ * Adds a photo to the index, enforcing FIFO-6.
  * @param {Omit<PhotoEntry, 'syncStatus'>} entry
  */
 export async function addPhoto(entry) {
@@ -95,19 +95,6 @@ export async function deletePhoto(id) {
 }
 
 /**
- * Merges patch into an existing photo record.
- * Fields not in patch are left unchanged.
- * @param {string} id
- * @param {Partial<PhotoEntry>} patch
- */
-export async function updatePhoto(id, patch) {
-  await openDB();
-  const store = tx(STORE_PHOTOS, 'readwrite');
-  const current = await promisify(store.get(id));
-  if (!current) return;
-  return promisify(tx(STORE_PHOTOS, 'readwrite').put({ ...current, ...patch }));
-}
-
 /**
  * Deletes multiple photos by id. Errors on individual deletes are ignored.
  * @param {string[]} ids
