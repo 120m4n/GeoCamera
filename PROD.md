@@ -41,10 +41,10 @@ npm run preview      # preview en http://localhost:4173
 
 ```bash
 # Desde la raíz del repositorio
-docker build -t geocamera:latest .
+docker build --platform linux/amd64 -t geocamera:latest .
 
 # Con tag de versión (recomendado en CI)
-docker build -t geocamera:$(git rev-parse --short HEAD) .
+docker build --platform linux/amd64 -t geocamera:$(git rev-parse --short HEAD) .
 ```
 
 El build multi-stage descarga dependencias, compila con Vite y copia solo `dist/`  
@@ -54,7 +54,7 @@ locales (`.dockerignore`).
 ### 3. Probar la imagen localmente
 
 ```bash
-docker run --rm -p 8080:80 geocamera:latest
+docker run --rm --platform linux/amd64 -p 8080:80 geocamera:latest
 ```
 
 Abrir `http://localhost:8080` — confirmar que la app carga y el Service Worker se registra.
@@ -71,8 +71,10 @@ docker tag geocamera:latest usuario/geocamera:latest
 docker push usuario/geocamera:latest
 
 # GHCR (GitHub Container Registry)
-docker tag geocamera:latest ghcr.io/usuario/geocamera:latest
-docker push ghcr.io/usuario/geocamera:latest
+docker tag geocamera:latest ghcr.io/120m4n/geocamera:latest
+docker push ghcr.io/120m4n/geocamera:latest
+
+docker build --no-cache --platform linux/amd64 -t ghcr.io/120m4n/geocamera:latest . && docker push ghcr.io/120m4n/geocamera:latest
 ```
 
 ### 5. Deploy en el VPS (Linode) con Traefik
@@ -80,7 +82,7 @@ docker push ghcr.io/usuario/geocamera:latest
 Crear o actualizar el servicio en el VPS:
 
 ```bash
-docker pull geocamera:latest
+docker pull ghcr.io/120m4n/geocamera:latest
 
 docker run -d \
   --name geocamera \
@@ -106,20 +108,22 @@ Traefik obtiene y renueva el certificado TLS vía Let's Encrypt automáticamente
 # docker-compose.yml
 services:
   geocamera:
-    image: geocamera:latest
-    build: .                          # omitir si se usa imagen pre-publicada
+    platform: linux/amd64
+    image: ghcr.io/120m4n/geocamera:latest
     restart: unless-stopped
     networks:
-      - traefik-public
+      traefik_public:
+        aliases:
+          - geocamera-public
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.geocamera.rule=Host(`geocamera.tudominio.com`)"
+      - "traefik.http.routers.geocamera.rule=Host(`geocam.sidis-ingenieria.com`)"
       - "traefik.http.routers.geocamera.entrypoints=websecure"
       - "traefik.http.routers.geocamera.tls.certresolver=letsencrypt"
       - "traefik.http.services.geocamera.loadbalancer.server.port=80"
 
 networks:
-  traefik-public:
+  traefik_public:
     external: true
 ```
 

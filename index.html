@@ -13,7 +13,7 @@
 
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
 
   <title>GeoCamera</title>
   <link rel="stylesheet" href="/src/styles.css">
@@ -38,7 +38,7 @@
   ">
     Para instalar GeoCamera: toca <strong style="color:#F5F3EF">Compartir</strong> →
     <strong style="color:#F5F3EF">Agregar a pantalla de inicio</strong>
-    <button onclick="document.getElementById('ios-banner').style.display='none'" style="
+    <button style="
       margin-left: 12px;
       background: transparent;
       border: 1px solid #2A3037;
@@ -52,18 +52,6 @@
   </div>
 
   <script type="module" src="/src/app.js"></script>
-  <script>
-    // Show iOS install hint only in Safari mobile, not in standalone mode
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-      || window.navigator.standalone === true;
-    const dismissed = sessionStorage.getItem('ios-banner-dismissed');
-    if (isIOS && !isStandalone && !dismissed) {
-      document.getElementById('ios-banner').style.display = 'block';
-    }
-    document.querySelector('#ios-banner button')?.addEventListener('click', () => {
-      sessionStorage.setItem('ios-banner-dismissed', '1');
-    });
-  </script>
+  <script type="module" src="/src/banner.js"></script>
 </body>
 </html>

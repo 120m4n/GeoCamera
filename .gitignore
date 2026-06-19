@@ -24,3 +24,7 @@ geocamera-mock.html
 
 # Splash source PNG — converted WebP is at public/splash_image.webp
 splash_image.png
+
+# Source design assets — generated icons live in public/icons/
+geocamera_icon_style.png
+Copia de geocamera_icon_style.png
