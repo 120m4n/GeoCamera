@@ -22,6 +22,45 @@
 <body>
   <div id="app"></div>
 
+  <!-- Android/Chromium install banner (shown when beforeinstallprompt fires) -->
+  <div id="android-banner" style="
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #15191D;
+    border-top: 1px solid #2A3037;
+    padding: 14px 20px max(env(safe-area-inset-bottom), 14px);
+    z-index: 999;
+    align-items: center;
+    gap: 12px;
+  ">
+    <span style="flex: 1; font-size: 13px; color: #8B919A; line-height: 1.5;">
+      Instala <strong style="color:#F5F3EF">GeoCamera</strong> para acceso rápido sin navegador
+    </span>
+    <button id="android-install-btn" style="
+      background: #FF6A1A;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    ">Instalar</button>
+    <button id="android-dismiss-btn" style="
+      background: transparent;
+      border: 1px solid #2A3037;
+      border-radius: 8px;
+      color: #8B919A;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    ">✕</button>
+  </div>
+
   <!-- iOS install banner (shown only in mobile browser, not standalone) -->
   <div id="ios-banner" style="
     display: none;

@@ -1,7 +1,7 @@
 // Service Worker — App Shell cache-first strategy
 // Sync logic lives in src/sync.js and is intentionally inactive in MVP.
 
-const CACHE_NAME = 'geocamera-v7';
+const CACHE_NAME = 'geocamera-v8';
 
 // Only precache URL-stable assets. Vite-bundled JS/CSS (hashed filenames)
 // get cached on demand via the fetch handler below.

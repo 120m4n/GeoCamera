@@ -1,5 +1,5 @@
 {
-  "id": "https://geocam.sidis-ingenieria.com/",
+  "id": "/",
   "name": "GeoCamera",
   "short_name": "GeoCamera",
   "description": "Captura fotos con metadatos geográficos embebidos. Local-first, sin backend.",
