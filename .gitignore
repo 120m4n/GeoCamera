@@ -22,6 +22,8 @@ android/app/src/main/res/*
 !android/app/src/main/res/mipmap-xhdpi/
 !android/app/src/main/res/mipmap-xxhdpi/
 !android/app/src/main/res/mipmap-xxxhdpi/
+!android/app/src/main/res/mipmap-anydpi-v26/
+!android/app/src/main/res/drawable/
 
 # Local HTTPS dev certs (not source — regenerate with mkcert)
 .ssl/
