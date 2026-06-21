@@ -132,14 +132,80 @@ export class CameraService {
   }
 }
 
+// Parse EXIF orientation tag from a JPEG data URL.
+// Returns 1–8 per the EXIF spec (1 = no rotation needed).
+function readExifOrientation(dataUrl) {
+  try {
+    const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+    const bin = atob(b64);
+    if (bin.charCodeAt(0) !== 0xFF || bin.charCodeAt(1) !== 0xD8) return 1;
+
+    let pos = 2;
+    while (pos + 4 < bin.length) {
+      const marker = (bin.charCodeAt(pos) << 8) | bin.charCodeAt(pos + 1);
+      const segLen  = (bin.charCodeAt(pos + 2) << 8) | bin.charCodeAt(pos + 3);
+
+      if (marker === 0xFFE1 && bin.slice(pos + 4, pos + 10) === 'Exif\x00\x00') {
+        const base = pos + 10;
+        const le   = bin.charCodeAt(base) === 0x49; // 'I' = little-endian
+        const r16  = o => le
+          ? (bin.charCodeAt(base+o) | bin.charCodeAt(base+o+1) << 8)
+          : (bin.charCodeAt(base+o) << 8 | bin.charCodeAt(base+o+1));
+        const r32  = o => le
+          ? (bin.charCodeAt(base+o) | bin.charCodeAt(base+o+1)<<8 | bin.charCodeAt(base+o+2)<<16 | bin.charCodeAt(base+o+3)<<24) >>> 0
+          : (bin.charCodeAt(base+o)<<24 | bin.charCodeAt(base+o+1)<<16 | bin.charCodeAt(base+o+2)<<8 | bin.charCodeAt(base+o+3)) >>> 0;
+
+        const ifd0 = r32(4);
+        const n    = r16(ifd0);
+        for (let i = 0; i < n; i++) {
+          const e = ifd0 + 2 + i * 12;
+          if (r16(e) === 0x0112) return r16(e + 8); // Orientation tag
+        }
+      }
+
+      if (marker === 0xFFDA) break; // start of scan — stop looking
+      pos += 2 + segLen;
+    }
+  } catch (_) {}
+  return 1;
+}
+
 function base64ToCanvas(dataUrl) {
   return new Promise((resolve) => {
     const img = new Image();
+    // Disable browser auto-rotation so we apply EXIF correction ourselves,
+    // avoiding double-rotation on Chrome 81+ which also auto-applies EXIF.
+    img.style.imageOrientation = 'none';
     img.onload = () => {
+      let ori = readExifOrientation(dataUrl);
+      // Android Camera1 doesn't embed EXIF orientation. Sensor at -90° from natural
+      // requires 90° CW correction (EXIF 6) to restore portrait orientation.
+      if (ori === 1 && Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+        ori = 6;
+      }
+      const W    = img.naturalWidth;
+      const H    = img.naturalHeight;
+      const swap = ori >= 5; // 90° or 270° rotations swap width/height
+
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d').drawImage(img, 0, 0);
+      canvas.width  = swap ? H : W;
+      canvas.height = swap ? W : H;
+      const ctx = canvas.getContext('2d');
+
+      // Apply a 2D transform that maps raw sensor pixels to the correct orientation.
+      // Each case encodes the standard EXIF rotation/flip as a canvas matrix.
+      switch (ori) {
+        case 2: ctx.transform(-1,  0,  0,  1, W, 0); break; // flip H
+        case 3: ctx.transform(-1,  0,  0, -1, W, H); break; // 180°
+        case 4: ctx.transform( 1,  0,  0, -1, 0, H); break; // flip V
+        case 5: ctx.transform( 0,  1,  1,  0, 0, 0); break; // transpose
+        case 6: ctx.transform( 0,  1, -1,  0, H, 0); break; // 90° CW
+        case 7: ctx.transform( 0, -1, -1,  0, H, W); break; // transverse
+        case 8: ctx.transform( 0, -1,  1,  0, 0, W); break; // 90° CCW
+      }
+
+      ctx.drawImage(img, 0, 0);
+      console.log('[GeoCamera/camera] EXIF ori:', ori, '| canvas:', canvas.width, 'x', canvas.height);
       resolve(canvas);
     };
     img.src = dataUrl;
