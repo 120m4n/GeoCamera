@@ -116,7 +116,7 @@ async function navigateTo(screen, params = {}) {
         screenEls.get('camera').stopCamera();
         show('settings');
         const photos = await listPhotos();
-        await screenEls.get('settings').refresh(photos.length);
+        await screenEls.get('settings').refresh(photos.length, appConfig.logoBlob);
         break;
       }
 
@@ -183,10 +183,19 @@ function handleDiscard() {
   screenEls.get('camera').startCamera();
 }
 
+// ── Default logo fallback ─────────────────────────────────────
+async function fetchDefaultLogo() {
+  try {
+    const res = await fetch('/icons/icon-192.png');
+    if (res.ok) return res.blob();
+  } catch { /* offline without SW cache */ }
+  return null;
+}
+
 // ── Config changes ────────────────────────────────────────────
 async function handleLogoChanged() {
   try {
-    appConfig.logoBlob = await getConfig('logoBlob');
+    appConfig.logoBlob = await getConfig('logoBlob') ?? await fetchDefaultLogo();
   } catch (err) {
     console.error('[GeoCamera/logo]', err?.message);
   }
@@ -251,7 +260,7 @@ async function boot() {
     buildApp();
     console.log('[GeoCamera/boot] DOM built');
 
-    appConfig.logoBlob        = await getConfig('logoBlob');
+    appConfig.logoBlob        = await getConfig('logoBlob') ?? await fetchDefaultLogo();
     appConfig.showWatermark   = await getConfig('showWatermark')   ?? true;
     appConfig.logoPosition    = await getConfig('logoPosition')    ?? 'bottom-right';
     appConfig.logoAlpha       = await getConfig('logoAlpha')       ?? 1.0;

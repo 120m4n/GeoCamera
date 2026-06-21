@@ -59,9 +59,17 @@ template.innerHTML = `
     justify-content: center;
     overflow: hidden;
     margin-bottom: 10px;
+    position: relative;
   }
   .logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .logo-preview .placeholder { color: #565C64; font-size: 13px; }
+  .logo-preview .default-label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    font-size: 10px; color: #8B919A;
+    background: rgba(11,14,17,0.78);
+    text-align: center; padding: 3px 0;
+    pointer-events: none;
+  }
   .upload-btn, .clear-btn {
     height: 44px;
     border-radius: 12px;
@@ -344,13 +352,13 @@ export class SettingsScreen extends HTMLElement {
     );
   }
 
-  async refresh(photoCount) {
+  async refresh(photoCount, activeLogo) {
     try {
       const sr = this.shadowRoot;
 
-      // Logo
-      const logoBlob = await getConfig('logoBlob');
-      this.#renderLogo(logoBlob);
+      // Logo — distinguish custom (persisted) from default (memory fallback)
+      const customLogo = await getConfig('logoBlob');
+      this.#renderLogo(activeLogo ?? customLogo, !customLogo);
 
       // Toggles
       const showWatermark = await getConfig('showWatermark') ?? true;
@@ -415,7 +423,7 @@ export class SettingsScreen extends HTMLElement {
     }
   }
 
-  #renderLogo(blob) {
+  #renderLogo(blob, isDefault = false) {
     const preview  = this.shadowRoot.getElementById('logoPreview');
     const clearBtn = this.shadowRoot.getElementById('clearBtn');
     if (this.#logoUrl) { URL.revokeObjectURL(this.#logoUrl); this.#logoUrl = null; }
@@ -426,7 +434,14 @@ export class SettingsScreen extends HTMLElement {
       img.src = this.#logoUrl;
       img.alt = 'Logo';
       preview.appendChild(img);
-      clearBtn.style.display = '';
+      if (isDefault) {
+        const lbl = document.createElement('span');
+        lbl.className = 'default-label';
+        lbl.textContent = 'GeoCamera (defecto)';
+        preview.appendChild(lbl);
+      }
+      // E4: "Eliminar" only for custom logos; default reverts automatically on clear
+      clearBtn.style.display = isDefault ? 'none' : '';
     } else {
       const span = document.createElement('span');
       span.className = 'placeholder';
