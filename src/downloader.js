@@ -20,18 +20,20 @@ const FULL_QUALITY = 0.92;
 export async function saveCapture(canvas, fix) {
   const ts = fix ? new Date(fix.ts) : new Date();
   const filename = buildFilename(ts, fix);
+  console.log('[GeoCamera/downloader] saveCapture start:', filename);
 
-  // Thumbnail first: scaled-down canvas is small and quick to encode.
   const thumbBlob = await canvasToBlob(
     scaledCanvas(canvas, THUMBNAIL_MAX_PX),
     'image/jpeg',
     THUMBNAIL_QUALITY
   );
+  console.log('[GeoCamera/downloader] thumbnail encoded:', thumbBlob.size, 'bytes');
 
-  // Full-res encode → file save → drop reference so iOS GC can collect the
-  // large blob before the next capture cycle begins.
   const fullBlob = await canvasToBlob(canvas, 'image/jpeg', FULL_QUALITY);
+  console.log('[GeoCamera/downloader] full-res encoded:', fullBlob.size, 'bytes');
+
   await saveFile(fullBlob, filename);
+  console.log('[GeoCamera/downloader] file saved:', filename);
 
   const id = crypto.randomUUID();
   await addPhoto({
@@ -44,6 +46,7 @@ export async function saveCapture(canvas, fix) {
     plusCode: fix?.plusCode ?? '',
     capturedAt: ts.toISOString(),
   });
+  console.log('[GeoCamera/downloader] DB entry written, id:', id);
 
   return id;
 }
@@ -54,16 +57,21 @@ export async function saveCapture(canvas, fix) {
  */
 async function saveFile(blob, filename) {
   if (Capacitor.isNativePlatform()) {
+    const platform = Capacitor.getPlatform();
+    const directory = platform === 'android' ? Directory.External : Directory.Documents;
+    console.log('[GeoCamera/downloader] Filesystem.writeFile platform:', platform, 'dir:', directory);
     const base64 = await blobToBase64(blob);
-    const directory = Capacitor.getPlatform() === 'android'
-      ? Directory.External
-      : Directory.Documents;
-    await Filesystem.writeFile({
-      path: `GeoCamera/${filename}`,
-      data: base64,
-      directory,
-      recursive: true,
-    });
+    try {
+      await Filesystem.writeFile({
+        path: `GeoCamera/${filename}`,
+        data: base64,
+        directory,
+        recursive: true,
+      });
+    } catch (fsErr) {
+      console.error('[GeoCamera/downloader] Filesystem.writeFile FAILURE', fsErr?.message, fsErr?.stack);
+      throw fsErr;
+    }
   } else {
     await triggerWebSave(blob, filename);
   }

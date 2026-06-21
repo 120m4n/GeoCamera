@@ -6,6 +6,7 @@ import './ui/detail-screen.js';
 import './ui/settings-screen.js';
 import './ui/toast.js';
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { geo } from './geo.js';
 import { saveCapture } from './downloader.js';
 import { listPhotos, getConfig, FIFO_MAX } from './db.js';
@@ -83,6 +84,7 @@ function handleNav(e) {
 }
 
 async function navigateTo(screen, params = {}) {
+  console.log('[GeoCamera/nav] ->', screen, params.photoId ?? '');
   switch (screen) {
     case 'standby':
       clearStandbyTimer();
@@ -127,6 +129,7 @@ async function navigateTo(screen, params = {}) {
 async function handleCapture(e) {
   const { canvas } = e.detail;
   const fix = geo.lastFix;
+  console.log('[GeoCamera/capture] canvas', canvas?.width, 'x', canvas?.height, '| fix', fix ? `±${fix.accuracy}m` : 'null');
 
   clearStandbyTimer();
   show('review');
@@ -145,18 +148,18 @@ async function handleCapture(e) {
 // ── Save confirmed ────────────────────────────────────────────
 async function handleSave(e) {
   const { canvas, fix } = e.detail;
+  console.log('[GeoCamera/save] start | canvas', canvas?.width, 'x', canvas?.height);
   try {
     await saveCapture(canvas, fix);
     const photos = await listPhotos();
-    // Sync list picker immediately: revokes evicted thumbnail blob URL (FIFO eviction)
-    // so the old blob is released before the next capture cycle starts.
+    console.log('[GeoCamera/save] OK — total in DB:', photos.length);
     await screenEls.get('list').refresh(photos);
     show('camera');
     screenEls.get('toast').show(`Guardada — ${photos.length}/${FIFO_MAX}`);
     screenEls.get('camera').startCamera();
     screenEls.get('camera').updateCounter(photos.length, FIFO_MAX);
   } catch (err) {
-    console.error('Error al guardar:', err);
+    console.error('[GeoCamera/save] FAILURE', err?.message, err?.stack);
     screenEls.get('toast').show('Error al guardar', 2000, 'error');
     show('camera');
     screenEls.get('camera').startCamera();
@@ -210,36 +213,50 @@ App.addListener('appStateChange', ({ isActive }) => {
 });
 
 // ── Service Worker registration ───────────────────────────────
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+// SW is only useful in the browser PWA. In native (Capacitor) the APK already
+// bundles all assets, so the SW only causes stale-cache errors across builds.
+if ('serviceWorker' in navigator) {
+  if (Capacitor.isNativePlatform()) {
+    // Unregister any SW left over from a previous install to clear stale caches.
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      for (const reg of regs) reg.unregister();
+    });
+  } else if (import.meta.env.PROD) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
 }
 
 // ── Boot ──────────────────────────────────────────────────────
 async function boot() {
-  buildApp();
+  console.log('[GeoCamera/boot] starting');
+  try {
+    buildApp();
+    console.log('[GeoCamera/boot] DOM built');
 
-  // Load persisted config
-  appConfig.logoBlob        = await getConfig('logoBlob');
-  appConfig.showWatermark   = await getConfig('showWatermark')   ?? true;
-  appConfig.showLogoHeader  = await getConfig('showLogoHeader')  ?? true;
-  appConfig.logoPosition    = await getConfig('logoPosition')    ?? 'bottom-right';
-  appConfig.logoAlpha       = await getConfig('logoAlpha')       ?? 1.0;
-  appConfig.stencilPosition = await getConfig('stencilPosition') ?? 'bottom';
-  appConfig.stencilAlpha    = await getConfig('stencilAlpha')    ?? 0.75;
+    appConfig.logoBlob        = await getConfig('logoBlob');
+    appConfig.showWatermark   = await getConfig('showWatermark')   ?? true;
+    appConfig.showLogoHeader  = await getConfig('showLogoHeader')  ?? true;
+    appConfig.logoPosition    = await getConfig('logoPosition')    ?? 'bottom-right';
+    appConfig.logoAlpha       = await getConfig('logoAlpha')       ?? 1.0;
+    appConfig.stencilPosition = await getConfig('stencilPosition') ?? 'bottom';
+    appConfig.stencilAlpha    = await getConfig('stencilAlpha')    ?? 0.75;
+    console.log('[GeoCamera/boot] config loaded');
 
-  // Wire global event delegation
-  document.addEventListener('nav', handleNav);
-  document.addEventListener('capture', handleCapture);
-  document.addEventListener('save', handleSave);
-  document.addEventListener('discard', handleDiscard);
-  document.addEventListener('logo-changed', handleLogoChanged);
-  document.addEventListener('config-changed', handleConfigChanged);
+    document.addEventListener('nav', handleNav);
+    document.addEventListener('capture', handleCapture);
+    document.addEventListener('save', handleSave);
+    document.addEventListener('discard', handleDiscard);
+    document.addEventListener('logo-changed', handleLogoChanged);
+    document.addEventListener('config-changed', handleConfigChanged);
 
-  // Start GPS immediately
-  geo.start();
+    geo.start();
+    console.log('[GeoCamera/boot] geo.start() called');
 
-  // Land on standby — camera starts only when user taps
-  await navigateTo('standby');
+    await navigateTo('standby');
+    console.log('[GeoCamera/boot] ready — standby screen shown');
+  } catch (err) {
+    console.error('[GeoCamera/boot] FAILURE', err?.message, err?.stack);
+  }
 }
 
 boot();

@@ -7,9 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "npm run build && ./node_modules/.bin/cap sync",
-    "android": "npm run build && ./node_modules/.bin/cap sync && ./node_modules/.bin/cap open android",
-    "ios": "npm run build && ./node_modules/.bin/cap sync && ./node_modules/.bin/cap open ios",
+    "cap:sync": "npm run build && npx cap sync",
+    "android": "npm run build && npx cap sync && npx cap open android",
+    "ios": "npm run build && npx cap sync && npx cap open ios",
     "lint": "npx eslint src/",
     "icons": "open icons/generate-icons.html"
   },

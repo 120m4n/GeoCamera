@@ -10,9 +10,11 @@ let _db = null;
 
 async function openDB() {
   if (_db) return _db;
+  console.log('[GeoCamera/db] openDB()');
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e) => {
+      console.log('[GeoCamera/db] onupgradeneeded v', e.oldVersion, '->', e.newVersion);
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORE_PHOTOS)) {
         const store = db.createObjectStore(STORE_PHOTOS, { keyPath: 'id' });
@@ -22,8 +24,15 @@ async function openDB() {
         db.createObjectStore(STORE_CONFIG, { keyPath: 'key' });
       }
     };
-    req.onsuccess = (e) => { _db = e.target.result; resolve(_db); };
-    req.onerror = () => reject(req.error);
+    req.onsuccess = (e) => {
+      _db = e.target.result;
+      console.log('[GeoCamera/db] open OK');
+      resolve(_db);
+    };
+    req.onerror = () => {
+      console.error('[GeoCamera/db] open FAILURE', req.error?.message);
+      reject(req.error);
+    };
   });
 }
 

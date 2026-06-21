@@ -19,35 +19,46 @@ export class GeoService extends EventTarget {
   async start() {
     if (this.#started) return;
     this.#started = true;
+    console.log('[GeoCamera/geo] start()');
 
-    // Request permissions on native; web falls back to browser prompt automatically.
     if (Capacitor.isNativePlatform()) {
       const { location } = await Geolocation.requestPermissions();
+      console.log('[GeoCamera/geo] location permission:', location);
       if (location === 'denied') {
+        console.warn('[GeoCamera/geo] location DENIED');
         this.dispatchEvent(new CustomEvent('error', { detail: 'denied' }));
         return;
       }
     }
 
-    // Single immediate fix, then watch for updates.
     try {
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 0,
       });
+      console.log('[GeoCamera/geo] initial fix ±', Math.round(pos.coords.accuracy), 'm');
       this.#handlePosition(pos);
     } catch (err) {
+      console.warn('[GeoCamera/geo] initial fix FAILED:', err?.message ?? err?.code);
       this.#handleError(err);
     }
 
     this.#watchId = await Geolocation.watchPosition(
       { enableHighAccuracy: true, maximumAge: 5000 },
       (pos, err) => {
-        if (err) { this.#handleError(err); return; }
-        if (pos)  this.#handlePosition(pos);
+        if (err) {
+          console.warn('[GeoCamera/geo] watchPosition error:', err?.message ?? err?.code);
+          this.#handleError(err);
+          return;
+        }
+        if (pos) {
+          console.log('[GeoCamera/geo] watch fix ±', Math.round(pos.coords.accuracy), 'm');
+          this.#handlePosition(pos);
+        }
       }
     );
+    console.log('[GeoCamera/geo] watchPosition id:', this.#watchId);
   }
 
   async stop() {

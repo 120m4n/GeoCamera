@@ -17,24 +17,15 @@ export class CameraService {
 
   async start(videoEl) {
     if (this.#native) {
-      // Let the WKWebView finish layout before touching native camera APIs.
       await new Promise(r => setTimeout(r, 200));
 
-      // Pre-request camera permission via AVFoundation before CameraPreview.start().
-      // iOS has a race condition where DiscoverySession returns empty if called
-      // immediately inside requestAccess's callback (the authorization status hasn't
-      // fully propagated yet). By calling Camera.requestPermissions() first — which
-      // uses AVFoundation directly without creating any AVCaptureSession — the status
-      // is already .authorized when the plugin's own requestAccess fires, so
-      // DiscoverySession finds cameras reliably.
       let camPerm;
       try {
         const result = await Camera.requestPermissions({ permissions: ['camera'] });
         camPerm = result.camera;
-        console.log('[GeoCamera] Camera.requestPermissions resolved:', camPerm);
+        console.log('[GeoCamera/camera] requestPermissions:', camPerm);
       } catch (permErr) {
-        console.warn('[GeoCamera] Camera.requestPermissions threw:', permErr);
-        // Plugin not available (e.g. web); let CameraPreview handle its own permission
+        console.warn('[GeoCamera/camera] requestPermissions threw:', permErr?.message);
         camPerm = 'granted';
       }
 
@@ -44,14 +35,20 @@ export class CameraService {
         throw err;
       }
 
-      console.log('[GeoCamera] calling CameraPreview.start');
+      console.log('[GeoCamera/camera] CameraPreview.start() →', this.#facing);
       document.body.style.backgroundColor = 'transparent';
       document.documentElement.style.backgroundColor = 'transparent';
-      await CameraPreview.start({
-        position: this.#facing === 'environment' ? 'rear' : 'front',
-        toBack: true,
-        disableAudio: true,
-      });
+      try {
+        await CameraPreview.start({
+          position: this.#facing === 'environment' ? 'rear' : 'front',
+          toBack: true,
+          disableAudio: true,
+        });
+        console.log('[GeoCamera/camera] CameraPreview.start() OK');
+      } catch (startErr) {
+        console.error('[GeoCamera/camera] CameraPreview.start() FAILURE', startErr?.message, startErr?.stack);
+        throw startErr;
+      }
     } else {
       await this.#checkAvailableCameras();
       await this.#openStream(videoEl);
@@ -62,7 +59,7 @@ export class CameraService {
     if (this.#native) {
       document.body.style.backgroundColor = '';
       document.documentElement.style.backgroundColor = '';
-      await CameraPreview.stop().catch(() => {});
+      await CameraPreview.stop().catch(err => console.warn('[GeoCamera/camera] stop() error (ignored):', err?.message));
     } else {
       if (this.#stream) {
         this.#stream.getTracks().forEach(t => t.stop());
@@ -73,6 +70,7 @@ export class CameraService {
 
   async toggleFacing(videoEl) {
     this.#facing = this.#facing === 'environment' ? 'user' : 'environment';
+    console.log('[GeoCamera/camera] toggleFacing ->', this.#facing);
     if (this.#native) {
       await CameraPreview.flip();
     } else {
@@ -81,16 +79,17 @@ export class CameraService {
     }
   }
 
-  /**
-   * Captures the current frame and returns a canvas.
-   * Native: CameraPreview.capture() → base64 → canvas.
-   * Web: snapshot from <video> element.
-   * @param {HTMLVideoElement} videoEl
-   * @returns {Promise<HTMLCanvasElement>}
-   */
   async capture(videoEl) {
     if (this.#native) {
-      const { value } = await CameraPreview.capture({ quality: 92 });
+      console.log('[GeoCamera/camera] CameraPreview.capture() start');
+      let value;
+      try {
+        ({ value } = await CameraPreview.capture({ quality: 92 }));
+        console.log('[GeoCamera/camera] CameraPreview.capture() OK — base64 length:', value?.length);
+      } catch (capErr) {
+        console.error('[GeoCamera/camera] CameraPreview.capture() FAILURE', capErr?.message, capErr?.stack);
+        throw capErr;
+      }
       return base64ToCanvas(`data:image/jpeg;base64,${value}`);
     }
     const canvas = document.createElement('canvas');
@@ -112,6 +111,7 @@ export class CameraService {
   }
 
   async #openStream(videoEl) {
+    console.log('[GeoCamera/camera] getUserMedia ->', this.#facing);
     try {
       this.#stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -123,8 +123,10 @@ export class CameraService {
       });
       videoEl.srcObject = this.#stream;
       await videoEl.play();
+      console.log('[GeoCamera/camera] getUserMedia OK');
     } catch (err) {
       this.#stream = null;
+      console.error('[GeoCamera/camera] getUserMedia FAILURE', err?.name, err?.message);
       throw err;
     }
   }
