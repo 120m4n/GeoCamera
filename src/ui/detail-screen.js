@@ -246,9 +246,11 @@ export class DetailScreen extends HTMLElement {
 
   #renderMeta(photo) {
     const hasCoords = photo.latitude !== 0 || photo.longitude !== 0;
-    const mapsUrl = hasCoords
-      ? `https://maps.google.com/?q=${photo.latitude.toFixed(6)},${photo.longitude.toFixed(6)}`
-      : null;
+    const mapsUrl = hasCoords && photo.plusCode
+      ? `https://maps.google.com/?q=${photo.plusCode.replace(/\+/g, '%2B')}`
+      : hasCoords
+        ? `https://maps.google.com/?q=${photo.latitude.toFixed(6)},${photo.longitude.toFixed(6)}`
+        : null;
     const coordStr = hasCoords
       ? `${photo.latitude.toFixed(6)}, ${photo.longitude.toFixed(6)}`
       : 'N/D';
