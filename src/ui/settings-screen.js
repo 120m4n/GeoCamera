@@ -1,4 +1,5 @@
 import { getConfig, setConfig, FIFO_MAX } from '../db.js';
+import './logo-crop-modal.js';
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -66,6 +67,13 @@ template.innerHTML = `
   .logo-preview .default-label {
     position: absolute; bottom: 0; left: 0; right: 0;
     font-size: 10px; color: #8B919A;
+    background: rgba(11,14,17,0.78);
+    text-align: center; padding: 3px 0;
+    pointer-events: none;
+  }
+  .logo-preview .info-label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    font-size: 10px; color: #FFC247;
     background: rgba(11,14,17,0.78);
     text-align: center; padding: 3px 0;
     pointer-events: none;
@@ -309,7 +317,8 @@ template.innerHTML = `
 `;
 
 export class SettingsScreen extends HTMLElement {
-  #logoUrl = null;
+  #logoUrl   = null;
+  #cropModal = null;
 
   connectedCallback() {
     if (this.shadowRoot) return;
@@ -324,6 +333,10 @@ export class SettingsScreen extends HTMLElement {
 
   #bind() {
     const sr = this.shadowRoot;
+
+    // Crop modal lives inside this shadow root, covering it when open
+    this.#cropModal = document.createElement('geo-logo-crop-modal');
+    sr.appendChild(this.#cropModal);
 
     sr.getElementById('backBtn').addEventListener('click', () =>
       this.dispatchEvent(new CustomEvent('nav', { detail: 'camera', bubbles: true, composed: true }))
@@ -404,13 +417,39 @@ export class SettingsScreen extends HTMLElement {
     try {
       const file = e.target.files[0];
       if (!file) return;
+      e.target.value = ''; // allow re-selection of same file
+
       const blob = new Blob([await file.arrayBuffer()], { type: file.type });
-      await setConfig('logoBlob', blob);
-      this.#renderLogo(blob);
+      let finalBlob  = blob;
+      let smallLabel = null;
+
+      if (file.type !== 'image/svg+xml') {
+        const { w, h } = await this.#getImageDimensions(blob);
+        if (w >= 200 && h >= 200) {
+          const cropped = await this.#cropModal.open(blob);
+          if (!cropped) return; // user cancelled
+          finalBlob = cropped;
+        } else {
+          smallLabel = 'Imagen pequeña — sin recorte';
+        }
+      }
+
+      await setConfig('logoBlob', finalBlob);
+      this.#renderLogo(finalBlob, false, smallLabel);
       this.dispatchEvent(new CustomEvent('logo-changed', { bubbles: true, composed: true }));
     } catch (err) {
       console.error('[GeoCamera/settings] handleFile error', err?.message);
     }
+  }
+
+  #getImageDimensions(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload  = () => { URL.revokeObjectURL(url); resolve({ w: img.naturalWidth, h: img.naturalHeight }); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('cannot decode image')); };
+      img.src = url;
+    });
   }
 
   async #clearLogo() {
@@ -423,7 +462,7 @@ export class SettingsScreen extends HTMLElement {
     }
   }
 
-  #renderLogo(blob, isDefault = false) {
+  #renderLogo(blob, isDefault = false, infoLabel = null) {
     const preview  = this.shadowRoot.getElementById('logoPreview');
     const clearBtn = this.shadowRoot.getElementById('clearBtn');
     if (this.#logoUrl) { URL.revokeObjectURL(this.#logoUrl); this.#logoUrl = null; }
@@ -439,8 +478,12 @@ export class SettingsScreen extends HTMLElement {
         lbl.className = 'default-label';
         lbl.textContent = 'GeoCamera (defecto)';
         preview.appendChild(lbl);
+      } else if (infoLabel) {
+        const lbl = document.createElement('span');
+        lbl.className = 'info-label';
+        lbl.textContent = infoLabel;
+        preview.appendChild(lbl);
       }
-      // E4: "Eliminar" only for custom logos; default reverts automatically on clear
       clearBtn.style.display = isDefault ? 'none' : '';
     } else {
       const span = document.createElement('span');
