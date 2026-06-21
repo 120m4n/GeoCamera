@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Validate every task** with `npm run dev` before marking it done.
 - If `npm run dev` fails after **2 retries**: stop, re-read the full context and the primary objective, write a concrete step-by-step action plan, then execute it.
+- **Architecture analysis and improvement proposals MUST be presented for client approval before any implementation.** Present findings as a table or list, wait for explicit confirmation, then implement only what is approved.
+- **Large changes require client approval + E2E validation in the PWA via MCP Playwright** before committing. A change is "large" if it touches more than one screen, modifies navigation flow, or alters data persistence. Run Playwright against `npm run preview` (or the dev server) and confirm the golden path works end-to-end.
 
 ## Dev commands
 
@@ -36,7 +38,7 @@ GeoCamera is a **local-first installable PWA** for geotagged field evidence phot
 3. **Review screen** (always — no skip) → confirm or discard
 4. On confirm: (a) auto-download via `<a download>` + Blob URL to `Downloads`/`Files` folder, (b) generate thumbnail + save metadata to IndexedDB, (c) release the full-res blob from memory
 
-**Critical constraint:** once downloaded, the full-res file is outside the PWA's reach forever. The app only retains a compressed thumbnail + metadata in IndexedDB. "FIFO 23" means the in-app index shows the last 23 captures — not that only 23 files exist on the device.
+**Critical constraint:** once downloaded, the full-res file is outside the PWA's reach forever. The app only retains a compressed thumbnail + metadata in IndexedDB. "FIFO 6" means the in-app index shows the last 6 captures — not that only 6 files exist on the device.
 
 ## Module structure (planned, in `src/`)
 
@@ -47,7 +49,7 @@ GeoCamera is a **local-first installable PWA** for geotagged field evidence phot
 | `pluscode.ts` | Open Location Code algorithm (client-side, no network calls) |
 | `stencil.ts` | Canvas overlay rendering (coords, Plus Code, datetime, logo) |
 | `downloader.ts` | Auto-download trigger (`<a download>` + Blob URL) and thumbnail generation |
-| `index.ts` | IndexedDB wrapper for the FIFO-23 metadata index (including embedded thumbnail blobs) |
+| `index.ts` | IndexedDB wrapper for the FIFO-6 metadata index (including embedded thumbnail blobs) |
 | `sync.ts` | **Stub only in MVP** — defines `enqueue`/`processQueue` interface, `SYNC_ENABLED = false` |
 | `ui/` | Native Web Components (`customElements.define`), no UI library |
 | `sw.js` | Service Worker: App Shell cache-first; sync registration present but inactive |

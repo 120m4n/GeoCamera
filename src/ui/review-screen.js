@@ -134,25 +134,32 @@ export class ReviewScreen extends HTMLElement {
     const loading = this.shadowRoot.getElementById('loading');
     loading.classList.remove('hidden');
 
-    const displayCanvas = this.shadowRoot.getElementById('canvas');
-    // Draw at native resolution to a temp canvas for stencil, then render to display
-    const workCanvas = document.createElement('canvas');
-    workCanvas.width = srcCanvas.width;
-    workCanvas.height = srcCanvas.height;
-    workCanvas.getContext('2d').drawImage(srcCanvas, 0, 0);
+    try {
+      const displayCanvas = this.shadowRoot.getElementById('canvas');
+      // Draw at native resolution to a temp canvas for stencil, then render to display
+      const workCanvas = document.createElement('canvas');
+      workCanvas.width = srcCanvas.width;
+      workCanvas.height = srcCanvas.height;
+      workCanvas.getContext('2d').drawImage(srcCanvas, 0, 0);
 
-    await applyStencil(workCanvas, fix, config.logoBlob, config);
+      await applyStencil(workCanvas, fix, config.logoBlob, config);
 
-    // Store for save
-    this.#canvas = workCanvas;
+      // Store for save
+      this.#canvas = workCanvas;
 
-    // Render to display canvas (will scale via CSS)
-    displayCanvas.width = workCanvas.width;
-    displayCanvas.height = workCanvas.height;
-    displayCanvas.getContext('2d').drawImage(workCanvas, 0, 0);
+      // Render to display canvas (will scale via CSS)
+      displayCanvas.width = workCanvas.width;
+      displayCanvas.height = workCanvas.height;
+      displayCanvas.getContext('2d').drawImage(workCanvas, 0, 0);
 
-    loading.classList.add('hidden');
-    this.shadowRoot.getElementById('saveBtn').disabled = false;
+      saveBtn.disabled = false;
+    } catch (err) {
+      console.error('[GeoCamera/review] stencil error', err?.message);
+      saveBtn.textContent = 'Error — reintentar';
+      saveBtn.disabled = false;
+    } finally {
+      loading.classList.add('hidden');
+    }
   }
 
   #discard() {

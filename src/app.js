@@ -16,7 +16,6 @@ import { processQueue } from './sync.js';
 const appConfig = {
   logoBlob:        null,
   showWatermark:   true,
-  showLogoHeader:  true,
   logoPosition:    'bottom-right',
   logoAlpha:       1.0,
   stencilPosition: 'bottom',
@@ -85,64 +84,76 @@ function handleNav(e) {
 
 async function navigateTo(screen, params = {}) {
   console.log('[GeoCamera/nav] ->', screen, params.photoId ?? '');
-  switch (screen) {
-    case 'standby':
-      clearStandbyTimer();
-      screenEls.get('camera').stopCamera();
-      show('standby');
-      break;
+  try {
+    switch (screen) {
+      case 'standby':
+        clearStandbyTimer();
+        screenEls.get('camera').stopCamera();
+        show('standby');
+        break;
 
-    case 'camera':
-      show('camera');
-      screenEls.get('camera').startCamera();
-      await refreshCounter();
-      startStandbyTimer();
-      break;
+      case 'camera':
+        show('camera');
+        screenEls.get('camera').startCamera();
+        await refreshCounter();
+        startStandbyTimer();
+        break;
 
-    case 'list':
-      clearStandbyTimer();
-      screenEls.get('camera').stopCamera();
-      show('list');
-      await screenEls.get('list').refresh();
-      break;
+      case 'list':
+        clearStandbyTimer();
+        screenEls.get('camera').stopCamera();
+        show('list');
+        await screenEls.get('list').refresh();
+        break;
 
-    case 'detail':
-      show('detail');
-      await screenEls.get('detail').load(params.photoId);
-      break;
+      case 'detail':
+        show('detail');
+        await screenEls.get('detail').load(params.photoId, params.photos ?? []);
+        break;
 
-    case 'settings': {
-      clearStandbyTimer();
-      screenEls.get('camera').stopCamera();
-      show('settings');
-      const photos = await listPhotos();
-      await screenEls.get('settings').refresh(photos.length);
-      break;
+      case 'settings': {
+        clearStandbyTimer();
+        screenEls.get('camera').stopCamera();
+        show('settings');
+        const photos = await listPhotos();
+        await screenEls.get('settings').refresh(photos.length);
+        break;
+      }
+
+      default:
+        navigateTo('camera');
     }
-
-    default:
-      navigateTo('camera');
+  } catch (err) {
+    console.error('[GeoCamera/nav]', screen, err?.message);
+    screenEls.get('toast')?.show('Error de navegación', 2000, 'error');
   }
 }
 
 // ── Capture → review ──────────────────────────────────────────
 async function handleCapture(e) {
-  const { canvas } = e.detail;
-  const fix = geo.lastFix;
-  console.log('[GeoCamera/capture] canvas', canvas?.width, 'x', canvas?.height, '| fix', fix ? `±${fix.accuracy}m` : 'null');
+  try {
+    const { canvas } = e.detail;
+    const fix = geo.lastFix;
+    console.log('[GeoCamera/capture] canvas', canvas?.width, 'x', canvas?.height, '| fix', fix ? `±${fix.accuracy}m` : 'null');
 
-  clearStandbyTimer();
-  show('review');
-  screenEls.get('camera').stopCamera();
+    clearStandbyTimer();
+    show('review');
+    screenEls.get('camera').stopCamera();
 
-  await screenEls.get('review').setCapture(canvas, fix, {
-    logoBlob:        appConfig.logoBlob,
-    showWatermark:   appConfig.showWatermark,
-    logoPosition:    appConfig.logoPosition,
-    logoAlpha:       appConfig.logoAlpha,
-    stencilPosition: appConfig.stencilPosition,
-    stencilAlpha:    appConfig.stencilAlpha,
-  });
+    await screenEls.get('review').setCapture(canvas, fix, {
+      logoBlob:        appConfig.logoBlob,
+      showWatermark:   appConfig.showWatermark,
+      logoPosition:    appConfig.logoPosition,
+      logoAlpha:       appConfig.logoAlpha,
+      stencilPosition: appConfig.stencilPosition,
+      stencilAlpha:    appConfig.stencilAlpha,
+    });
+  } catch (err) {
+    console.error('[GeoCamera/capture]', err?.message);
+    screenEls.get('toast')?.show('Error al procesar captura', 2000, 'error');
+    show('camera');
+    screenEls.get('camera').startCamera();
+  }
 }
 
 // ── Save confirmed ────────────────────────────────────────────
@@ -174,12 +185,15 @@ function handleDiscard() {
 
 // ── Config changes ────────────────────────────────────────────
 async function handleLogoChanged() {
-  appConfig.logoBlob = await getConfig('logoBlob');
+  try {
+    appConfig.logoBlob = await getConfig('logoBlob');
+  } catch (err) {
+    console.error('[GeoCamera/logo]', err?.message);
+  }
 }
 
-async function handleConfigChanged(e) {
+function handleConfigChanged(e) {
   if ('showWatermark'   in e.detail) appConfig.showWatermark   = e.detail.showWatermark;
-  if ('showLogoHeader'  in e.detail) appConfig.showLogoHeader  = e.detail.showLogoHeader;
   if ('logoPosition'    in e.detail) appConfig.logoPosition    = e.detail.logoPosition;
   if ('logoAlpha'       in e.detail) appConfig.logoAlpha       = e.detail.logoAlpha;
   if ('stencilPosition' in e.detail) appConfig.stencilPosition = e.detail.stencilPosition;
@@ -199,8 +213,12 @@ geo.addEventListener('error', (e) => {
 });
 
 async function refreshCounter() {
-  const photos = await listPhotos();
-  screenEls.get('camera').updateCounter(photos.length, FIFO_MAX);
+  try {
+    const photos = await listPhotos();
+    screenEls.get('camera').updateCounter(photos.length, FIFO_MAX);
+  } catch (err) {
+    console.error('[GeoCamera/counter]', err?.message);
+  }
 }
 
 // ── iOS / sync on resume ──────────────────────────────────────
@@ -235,7 +253,6 @@ async function boot() {
 
     appConfig.logoBlob        = await getConfig('logoBlob');
     appConfig.showWatermark   = await getConfig('showWatermark')   ?? true;
-    appConfig.showLogoHeader  = await getConfig('showLogoHeader')  ?? true;
     appConfig.logoPosition    = await getConfig('logoPosition')    ?? 'bottom-right';
     appConfig.logoAlpha       = await getConfig('logoAlpha')       ?? 1.0;
     appConfig.stencilPosition = await getConfig('stencilPosition') ?? 'bottom';

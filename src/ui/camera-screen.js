@@ -1,4 +1,13 @@
 import { camera } from '../camera.js';
+import { HIGH_ACCURACY_THRESHOLD } from '../geo.js';
+
+const _svg = (d) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  power:    _svg('<line x1="12" y1="2" x2="12" y2="12"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>'),
+  settings: _svg('<path d="M20 7H9"/><path d="M14 17H3"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>'),
+  grid:     _svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
+  rotateCw: _svg('<path d="M21 2v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/>'),
+};
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -130,10 +139,10 @@ template.innerHTML = `
     justify-content: center;
     color: #F5F3EF;
     cursor: pointer;
-    font-size: 18px;
     user-select: none;
     -webkit-user-select: none;
   }
+  .icon-btn svg { width: 20px; height: 20px; display: block; flex-shrink: 0; }
   .counter-badge {
     background: rgba(11,14,17,0.72);
     border: 1px solid #2A3037;
@@ -188,11 +197,11 @@ template.innerHTML = `
     align-items: center;
     justify-content: center;
     color: #8B919A;
-    font-size: 20px;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
   }
+  .side-btn svg { width: 22px; height: 22px; display: block; flex-shrink: 0; }
   .side-btn.hidden { visibility: hidden; }
   .shutter-btn {
     width: 84px; height: 84px;
@@ -239,15 +248,15 @@ template.innerHTML = `
 
   <div class="top-bar">
     <div class="top-left">
-      <div class="icon-btn" id="standbyBtn" title="Standby">⏻</div>
+      <div class="icon-btn" id="standbyBtn" title="Standby">${ICON.power}</div>
     </div>
     <div class="gps-badge">
       <div class="gps-dot" id="gpsDot"></div>
       <span id="gpsText">Buscando GPS…</span>
     </div>
     <div class="top-right">
-      <div class="icon-btn" id="settingsBtn" title="Configuración">⚙</div>
-      <div class="icon-btn" id="listBtn" title="Capturas">▦</div>
+      <div class="icon-btn" id="settingsBtn" title="Configuración">${ICON.settings}</div>
+      <div class="icon-btn" id="listBtn" title="Capturas">${ICON.grid}</div>
       <div class="counter-badge" id="counterBadge">0/23</div>
     </div>
   </div>
@@ -256,11 +265,11 @@ template.innerHTML = `
 
   <div class="bottom-controls">
     <div class="controls-row">
-      <div class="side-btn" id="galleryBtn" title="Ver capturas">▦</div>
+      <div class="side-btn" id="galleryBtn" title="Ver capturas">${ICON.grid}</div>
       <div class="shutter-btn disabled" id="shutterBtn">
         <div class="shutter-inner"></div>
       </div>
-      <div class="side-btn" id="flipBtn" title="Cambiar cámara">⟲</div>
+      <div class="side-btn" id="flipBtn" title="Cambiar cámara">${ICON.rotateCw}</div>
     </div>
   </div>
 </div>
@@ -277,6 +286,11 @@ export class CameraScreen extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.appendChild(template.content.cloneNode(true));
     this.#bindEvents();
+  }
+
+  disconnectedCallback() {
+    clearTimeout(this.#pressedTimer);
+    this.#pressedTimer = null;
   }
 
   #bindEvents() {
@@ -369,7 +383,7 @@ export class CameraScreen extends HTMLElement {
       warning.classList.remove('visible');
       return;
     }
-    const good = fix.accuracy <= 20;
+    const good = fix.accuracy <= HIGH_ACCURACY_THRESHOLD;
     dot.className = 'gps-dot' + (good ? ' locked' : '');
     text.textContent = `±${fix.accuracy} m`;
     warning.classList.toggle('visible', !good);
@@ -401,8 +415,12 @@ export class CameraScreen extends HTMLElement {
   }
 
   async #onFlip() {
-    const video = this.shadowRoot.querySelector('video');
-    await camera.toggleFacing(video);
+    try {
+      const video = this.shadowRoot.querySelector('video');
+      await camera.toggleFacing(video);
+    } catch (err) {
+      console.error('[GeoCamera/flip]', err?.message);
+    }
   }
 
   #updateFlipBtn() {

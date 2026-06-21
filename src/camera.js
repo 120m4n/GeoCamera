@@ -171,8 +171,9 @@ function readExifOrientation(dataUrl) {
 }
 
 function base64ToCanvas(dataUrl) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
+    img.onerror = reject;
     // Disable browser auto-rotation so we apply EXIF correction ourselves,
     // avoiding double-rotation on Chrome 81+ which also auto-applies EXIF.
     img.style.imageOrientation = 'none';

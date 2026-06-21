@@ -1,4 +1,5 @@
 import './photo-overlay.js';
+import { HIGH_ACCURACY_THRESHOLD } from '../geo.js';
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -228,7 +229,7 @@ export class ImagePicker extends HTMLElement {
 
     const acc = document.createElement('span');
     if (photo.accuracyMeters > 0) {
-      acc.className = `acc ${photo.accuracyMeters <= 20 ? 'good' : 'warn'}`;
+      acc.className = `acc ${photo.accuracyMeters <= HIGH_ACCURACY_THRESHOLD ? 'good' : 'warn'}`;
       acc.textContent = `±${photo.accuracyMeters}m`;
     } else {
       acc.className = 'acc none';

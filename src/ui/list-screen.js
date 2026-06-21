@@ -1,6 +1,12 @@
 import { listPhotos, deletePhoto, deletePhotos, FIFO_MAX } from '../db.js';
 import './image-picker.js';
 
+const _svg = (d) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  back: _svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'),
+};
+
 const template = document.createElement('template');
 template.innerHTML = `
 <style>
@@ -46,11 +52,11 @@ template.innerHTML = `
     justify-content: center;
     cursor: pointer;
     color: #F5F3EF;
-    font-size: 16px;
     flex-shrink: 0;
     user-select: none;
     -webkit-user-select: none;
   }
+  .back-btn svg { width: 18px; height: 18px; display: block; }
   .select-btn {
     height: 32px;
     padding: 0 14px;
@@ -113,7 +119,7 @@ template.innerHTML = `
 </style>
 <div class="header">
   <div class="header-left">
-    <div class="back-btn" id="backBtn">←</div>
+    <div class="back-btn" id="backBtn">${ICON.back}</div>
     <div>
       <h1>Capturas recientes</h1>
       <div class="sub" id="subtitle">0 de 6 · FIFO local</div>
@@ -129,6 +135,8 @@ template.innerHTML = `
 
 export class ListScreen extends HTMLElement {
   #selectionMode = false;
+  /** @type {import('../db.js').PhotoEntry[]} */
+  #photos = [];
 
   connectedCallback() {
     if (this.shadowRoot) return;
@@ -153,14 +161,18 @@ export class ListScreen extends HTMLElement {
 
     this.shadowRoot.getElementById('picker').addEventListener('photo-select', (e) => {
       this.dispatchEvent(new CustomEvent('nav', {
-        detail: { screen: 'detail', photoId: e.detail.photoId },
+        detail: { screen: 'detail', photoId: e.detail.photoId, photos: this.#photos },
         bubbles: true, composed: true,
       }));
     });
 
     this.shadowRoot.getElementById('picker').addEventListener('photo-delete', async (e) => {
-      await deletePhoto(e.detail.photoId);
-      await this.refresh();
+      try {
+        await deletePhoto(e.detail.photoId);
+        await this.refresh();
+      } catch (err) {
+        console.error('[GeoCamera/list] delete error', err?.message);
+      }
     });
 
     this.shadowRoot.getElementById('picker').addEventListener('selection-change', (e) => {
@@ -172,11 +184,16 @@ export class ListScreen extends HTMLElement {
 
   /** @param {import('../db.js').PhotoEntry[]} [photosOverride] */
   async refresh(photosOverride) {
-    const photos = photosOverride ?? await listPhotos();
-    this.shadowRoot.getElementById('subtitle').textContent = `${photos.length} de ${FIFO_MAX} · FIFO local`;
-    this.shadowRoot.getElementById('picker').photos = photos;
-    if (this.#selectionMode) {
-      this.#updateTrashBtn(this.shadowRoot.getElementById('picker').selectedIds.length);
+    try {
+      const photos = photosOverride ?? await listPhotos();
+      this.#photos = photos;
+      this.shadowRoot.getElementById('subtitle').textContent = `${photos.length} de ${FIFO_MAX} · FIFO local`;
+      this.shadowRoot.getElementById('picker').photos = photos;
+      if (this.#selectionMode) {
+        this.#updateTrashBtn(this.shadowRoot.getElementById('picker').selectedIds.length);
+      }
+    } catch (err) {
+      console.error('[GeoCamera/list] refresh error', err?.message);
     }
   }
 
@@ -200,12 +217,16 @@ export class ListScreen extends HTMLElement {
   }
 
   async #deleteSelected() {
-    const picker = this.shadowRoot.getElementById('picker');
-    const ids = picker.selectedIds;
-    if (ids.length === 0) return;
-    await deletePhotos(ids);
-    this.#exitSelectionMode();
-    await this.refresh();
+    try {
+      const picker = this.shadowRoot.getElementById('picker');
+      const ids = picker.selectedIds;
+      if (ids.length === 0) return;
+      await deletePhotos(ids);
+      this.#exitSelectionMode();
+      await this.refresh();
+    } catch (err) {
+      console.error('[GeoCamera/list] deleteSelected error', err?.message);
+    }
   }
 
   #updateTrashBtn(count) {

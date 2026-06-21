@@ -4,7 +4,7 @@ import { encode as encodePlusCode } from './pluscode.js';
 
 /** @typedef {{ lat: number, lon: number, accuracy: number, plusCode: string, ts: string }} GeoFix */
 
-const HIGH_ACCURACY_THRESHOLD = 20; // meters — below this is "good"
+export const HIGH_ACCURACY_THRESHOLD = 20; // meters — below this is "good"
 
 export class GeoService extends EventTarget {
   /** @type {GeoFix | null} */

@@ -50,11 +50,12 @@ self.addEventListener('message', (e) => {
     ]).then(() => {
       self.registration.unregister();
       e.ports[0]?.postMessage({ status: 'reset_complete' });
+    }).catch((err) => {
+      console.error('[SW] RESET_APP failed', err);
+      e.ports[0]?.postMessage({ status: 'reset_error', error: String(err) });
     });
   }
 });
-
-// ── Fetch: cache-first strategy ──────────────────────────
 
 // ── Fetch: cache-first strategy ──────────────────────────
 self.addEventListener('fetch', (e) => {
@@ -72,7 +73,7 @@ self.addEventListener('fetch', (e) => {
           caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
         }
         return response;
-      });
+      }).catch(() => new Response('Offline', { status: 503, statusText: 'Service Unavailable' }));
     })
   );
 });

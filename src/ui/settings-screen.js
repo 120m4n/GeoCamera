@@ -1,4 +1,4 @@
-import { getConfig, setConfig } from '../db.js';
+import { getConfig, setConfig, FIFO_MAX } from '../db.js';
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -345,38 +345,42 @@ export class SettingsScreen extends HTMLElement {
   }
 
   async refresh(photoCount) {
-    const sr = this.shadowRoot;
+    try {
+      const sr = this.shadowRoot;
 
-    // Logo
-    const logoBlob = await getConfig('logoBlob');
-    this.#renderLogo(logoBlob);
+      // Logo
+      const logoBlob = await getConfig('logoBlob');
+      this.#renderLogo(logoBlob);
 
-    // Toggles
-    const showWatermark = await getConfig('showWatermark') ?? true;
-    sr.getElementById('switchWatermark').classList.toggle('on', showWatermark);
+      // Toggles
+      const showWatermark = await getConfig('showWatermark') ?? true;
+      sr.getElementById('switchWatermark').classList.toggle('on', showWatermark);
 
-    // Logo position
-    const logoPos = await getConfig('logoPosition') ?? 'bottom-right';
-    sr.querySelectorAll('.corner-btn').forEach(b =>
-      b.classList.toggle('active', b.dataset.corner === logoPos)
-    );
+      // Logo position
+      const logoPos = await getConfig('logoPosition') ?? 'bottom-right';
+      sr.querySelectorAll('.corner-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.corner === logoPos)
+      );
 
-    // Logo alpha
-    const logoAlpha = await getConfig('logoAlpha') ?? 1.0;
-    this.#syncSeg('#logoAlphaSeg', logoAlpha);
+      // Logo alpha
+      const logoAlpha = await getConfig('logoAlpha') ?? 1.0;
+      this.#syncSeg('#logoAlphaSeg', logoAlpha);
 
-    // Stencil position
-    const stencilPos = await getConfig('stencilPosition') ?? 'bottom';
-    sr.querySelectorAll('.pos-btn').forEach(b =>
-      b.classList.toggle('active', b.dataset.pos === stencilPos)
-    );
+      // Stencil position
+      const stencilPos = await getConfig('stencilPosition') ?? 'bottom';
+      sr.querySelectorAll('.pos-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.pos === stencilPos)
+      );
 
-    // Stencil alpha
-    const stencilAlpha = await getConfig('stencilAlpha') ?? 0.75;
-    this.#syncSeg('#stencilAlphaSeg', stencilAlpha);
+      // Stencil alpha
+      const stencilAlpha = await getConfig('stencilAlpha') ?? 0.75;
+      this.#syncSeg('#stencilAlphaSeg', stencilAlpha);
 
-    // Photo count
-    if (photoCount !== undefined) sr.getElementById('photoCount').textContent = `${photoCount} / 23`;
+      // Photo count
+      if (photoCount !== undefined) sr.getElementById('photoCount').textContent = `${photoCount} / ${FIFO_MAX}`;
+    } catch (err) {
+      console.error('[GeoCamera/settings] refresh error', err?.message);
+    }
   }
 
   // ── Private helpers ─────────────────────────────────────────────
@@ -389,18 +393,26 @@ export class SettingsScreen extends HTMLElement {
   }
 
   async #handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const blob = new Blob([await file.arrayBuffer()], { type: file.type });
-    await setConfig('logoBlob', blob);
-    this.#renderLogo(blob);
-    this.dispatchEvent(new CustomEvent('logo-changed', { bubbles: true, composed: true }));
+    try {
+      const file = e.target.files[0];
+      if (!file) return;
+      const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+      await setConfig('logoBlob', blob);
+      this.#renderLogo(blob);
+      this.dispatchEvent(new CustomEvent('logo-changed', { bubbles: true, composed: true }));
+    } catch (err) {
+      console.error('[GeoCamera/settings] handleFile error', err?.message);
+    }
   }
 
   async #clearLogo() {
-    await setConfig('logoBlob', null);
-    this.#renderLogo(null);
-    this.dispatchEvent(new CustomEvent('logo-changed', { bubbles: true, composed: true }));
+    try {
+      await setConfig('logoBlob', null);
+      this.#renderLogo(null);
+      this.dispatchEvent(new CustomEvent('logo-changed', { bubbles: true, composed: true }));
+    } catch (err) {
+      console.error('[GeoCamera/settings] clearLogo error', err?.message);
+    }
   }
 
   #renderLogo(blob) {
@@ -425,33 +437,49 @@ export class SettingsScreen extends HTMLElement {
   }
 
   async #toggleSwitch(el, configKey) {
-    const next = !el.classList.contains('on');
-    el.classList.toggle('on', next);
-    await setConfig(configKey, next);
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { [configKey]: next }, bubbles: true, composed: true }));
+    try {
+      const next = !el.classList.contains('on');
+      el.classList.toggle('on', next);
+      await setConfig(configKey, next);
+      this.dispatchEvent(new CustomEvent('config-changed', { detail: { [configKey]: next }, bubbles: true, composed: true }));
+    } catch (err) {
+      console.error('[GeoCamera/settings] toggleSwitch error', err?.message);
+    }
   }
 
   async #pickCorner(btn) {
-    const val = btn.dataset.corner;
-    this.shadowRoot.querySelectorAll('.corner-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    await setConfig('logoPosition', val);
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { logoPosition: val }, bubbles: true, composed: true }));
+    try {
+      const val = btn.dataset.corner;
+      this.shadowRoot.querySelectorAll('.corner-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      await setConfig('logoPosition', val);
+      this.dispatchEvent(new CustomEvent('config-changed', { detail: { logoPosition: val }, bubbles: true, composed: true }));
+    } catch (err) {
+      console.error('[GeoCamera/settings] pickCorner error', err?.message);
+    }
   }
 
   async #pickAlpha(btn, segSelector, configKey) {
-    const val = parseFloat(btn.dataset.val);
-    this.#syncSeg(segSelector, val);
-    await setConfig(configKey, val);
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { [configKey]: val }, bubbles: true, composed: true }));
+    try {
+      const val = parseFloat(btn.dataset.val);
+      this.#syncSeg(segSelector, val);
+      await setConfig(configKey, val);
+      this.dispatchEvent(new CustomEvent('config-changed', { detail: { [configKey]: val }, bubbles: true, composed: true }));
+    } catch (err) {
+      console.error('[GeoCamera/settings] pickAlpha error', err?.message);
+    }
   }
 
   async #pickPosition(btn) {
-    const val = btn.dataset.pos;
-    this.shadowRoot.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    await setConfig('stencilPosition', val);
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { stencilPosition: val }, bubbles: true, composed: true }));
+    try {
+      const val = btn.dataset.pos;
+      this.shadowRoot.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      await setConfig('stencilPosition', val);
+      this.dispatchEvent(new CustomEvent('config-changed', { detail: { stencilPosition: val }, bubbles: true, composed: true }));
+    } catch (err) {
+      console.error('[GeoCamera/settings] pickPosition error', err?.message);
+    }
   }
 }
 

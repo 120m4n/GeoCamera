@@ -57,6 +57,11 @@ export class GeoToast extends HTMLElement {
     this.shadowRoot.appendChild(template.content.cloneNode(true));
   }
 
+  disconnectedCallback() {
+    clearTimeout(this.#timer);
+    this.#timer = null;
+  }
+
   /** @param {string} message @param {number} [duration=1300] @param {'success'|'error'} [type='success'] */
   show(message, duration = 1300, type = 'success') {
     this.shadowRoot.getElementById('label').textContent = message;
