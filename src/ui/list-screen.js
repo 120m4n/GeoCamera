@@ -5,6 +5,7 @@ const _svg = (d) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICON = {
   back: _svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'),
+  map:  _svg('<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>'),
 };
 
 const template = document.createElement('template');
@@ -57,6 +58,28 @@ template.innerHTML = `
     -webkit-user-select: none;
   }
   .back-btn svg { width: 18px; height: 18px; display: block; }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .map-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: #15191D;
+    border: 1px solid #2A3037;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #8B919A;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .map-btn:active { color: #FF6A1A; border-color: #FF6A1A; }
+  .map-btn svg { width: 18px; height: 18px; display: block; }
   .select-btn {
     height: 32px;
     padding: 0 14px;
@@ -125,7 +148,10 @@ template.innerHTML = `
       <div class="sub" id="subtitle">0 de 6 · FIFO local</div>
     </div>
   </div>
-  <button class="select-btn" id="selectBtn">Seleccionar</button>
+  <div class="header-right">
+    <div class="map-btn" id="mapBtn" title="Visor geográfico">${ICON.map}</div>
+    <button class="select-btn" id="selectBtn">Seleccionar</button>
+  </div>
 </div>
 <geo-image-picker id="picker"></geo-image-picker>
 <div class="action-bar" id="actionBar">
@@ -149,6 +175,10 @@ export class ListScreen extends HTMLElement {
       } else {
         this.dispatchEvent(new CustomEvent('nav', { detail: 'camera', bubbles: true, composed: true }));
       }
+    });
+
+    this.shadowRoot.getElementById('mapBtn').addEventListener('click', () => {
+      this.dispatchEvent(new CustomEvent('nav', { detail: 'map', bubbles: true, composed: true }));
     });
 
     this.shadowRoot.getElementById('selectBtn').addEventListener('click', () => {
