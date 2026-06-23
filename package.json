@@ -28,6 +28,7 @@
     "@capacitor/geolocation": "^8.2.0",
     "@capacitor/ios": "8.4.0",
     "@capacitor/share": "^8.0.1",
+    "leaflet": "^1.9.4",
     "open-location-code": "^1.0.3"
   }
 }

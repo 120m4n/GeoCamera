@@ -4,6 +4,7 @@ import './ui/review-screen.js';
 import './ui/list-screen.js';
 import './ui/detail-screen.js';
 import './ui/settings-screen.js';
+import './ui/map-screen.js';
 import './ui/toast.js';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -23,7 +24,7 @@ const appConfig = {
 };
 
 // ── Router ───────────────────────────────────────────────────
-const SCREENS = ['standby', 'camera', 'review', 'list', 'detail', 'settings'];
+const SCREENS = ['standby', 'camera', 'review', 'list', 'detail', 'settings', 'map'];
 
 /** @type {Map<string, HTMLElement>} */
 const screenEls = new Map();
@@ -120,6 +121,12 @@ async function navigateTo(screen, params = {}) {
         break;
       }
 
+      case 'map':
+        clearStandbyTimer();
+        show('map');
+        await screenEls.get('map').refresh();
+        break;
+
       default:
         navigateTo('camera');
     }
@@ -165,6 +172,7 @@ async function handleSave(e) {
     const photos = await listPhotos();
     console.log('[GeoCamera/save] OK — total in DB:', photos.length);
     await screenEls.get('list').refresh(photos);
+    screenEls.get('map').syncPhotos(photos);
     show('camera');
     screenEls.get('toast').show(`Guardada — ${photos.length}/${FIFO_MAX}`);
     screenEls.get('camera').startCamera();

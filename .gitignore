@@ -4,10 +4,26 @@ node_modules/
 # Build output
 dist/
 
-# Capacitor native platforms
+# Capacitor native platforms — ignore everything except launcher icons
 # Regenerate: npx cap add ios / npx cap add android
-android/
+android/*
 ios/
+# Un-ignore path to mipmap folders one level at a time (git requires this)
+!android/app/
+android/app/*
+!android/app/src/
+android/app/src/*
+!android/app/src/main/
+android/app/src/main/*
+!android/app/src/main/res/
+android/app/src/main/res/*
+!android/app/src/main/res/mipmap-mdpi/
+!android/app/src/main/res/mipmap-hdpi/
+!android/app/src/main/res/mipmap-xhdpi/
+!android/app/src/main/res/mipmap-xxhdpi/
+!android/app/src/main/res/mipmap-xxxhdpi/
+!android/app/src/main/res/mipmap-anydpi-v26/
+!android/app/src/main/res/drawable/
 
 # Local HTTPS dev certs (not source — regenerate with mkcert)
 .ssl/

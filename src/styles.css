@@ -21,6 +21,14 @@ html {
   /* Prevent double-tap zoom on iOS without killing accessibility */
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
+  /* Disable text selection across all UI — native-app feel */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea, select {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 body {
