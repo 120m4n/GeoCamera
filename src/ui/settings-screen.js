@@ -1,4 +1,4 @@
-import { getConfig, setConfig, FIFO_MAX } from '../db.js';
+import { getConfig, setConfig, FIFO_MAX, getFifoMax, setFifoMax } from '../db.js';
 import './logo-crop-modal.js';
 
 const template = document.createElement('template');
@@ -228,6 +228,30 @@ template.innerHTML = `
   .info-desc  { font-size: 11.5px; color: #8B919A; margin-top: 2px; }
   .info-value { font-size: 12px; color: #565C64; font-family: 'JetBrains Mono', monospace; }
   .version { padding: 24px 0 max(env(safe-area-inset-bottom), 24px); font-size: 11px; color: #565C64; text-align: center; }
+
+  /* ── FIFO slider ── */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .slider-label { font-size: 14px; color: #F5F3EF; }
+  .slider-value {
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #FF6A1A;
+    font-weight: 700;
+    min-width: 32px;
+    text-align: right;
+  }
+  .fifo-slider {
+    width: 100%;
+    accent-color: #FF6A1A;
+    height: 4px;
+    margin-bottom: 6px;
+  }
+  .slider-hint { font-size: 11px; color: #565C64; margin-bottom: 12px; }
 </style>
 
 <div class="header">
@@ -294,6 +318,12 @@ template.innerHTML = `
 
   <!-- ── Almacenamiento ── -->
   <div class="section-label">Almacenamiento</div>
+  <div class="slider-row">
+    <span class="slider-label">Máximo FIFO</span>
+    <span class="slider-value" id="fifoValue">6</span>
+  </div>
+  <input type="range" class="fifo-slider" id="fifoSlider" min="6" max="50" step="1" value="6">
+  <div class="slider-hint">Capturas a retener en el índice local (las más antiguas se eliminan automáticamente)</div>
   <div class="toggle-row">
     <div>
       <div class="toggle-label">Sincronización con backend</div>
@@ -363,6 +393,20 @@ export class SettingsScreen extends HTMLElement {
     sr.querySelectorAll('.pos-btn').forEach(btn =>
       btn.addEventListener('click', () => this.#pickPosition(btn))
     );
+
+    // FIFO slider
+    const slider = sr.getElementById('fifoSlider');
+    const fifoVal = sr.getElementById('fifoValue');
+    slider.addEventListener('input', () => {
+      fifoVal.textContent = slider.value;
+    });
+    slider.addEventListener('change', async () => {
+      await setFifoMax(Number(slider.value));
+      this.dispatchEvent(new CustomEvent('config-changed', {
+        detail: { fifoMax: Number(slider.value) },
+        bubbles: true, composed: true,
+      }));
+    });
   }
 
   async refresh(photoCount, activeLogo) {
@@ -397,8 +441,14 @@ export class SettingsScreen extends HTMLElement {
       const stencilAlpha = await getConfig('stencilAlpha') ?? 0.75;
       this.#syncSeg('#stencilAlphaSeg', stencilAlpha);
 
+      // FIFO slider
+      const fifoMax = await getFifoMax();
+      const slider = sr.getElementById('fifoSlider');
+      slider.value = fifoMax;
+      sr.getElementById('fifoValue').textContent = fifoMax;
+
       // Photo count
-      if (photoCount !== undefined) sr.getElementById('photoCount').textContent = `${photoCount} / ${FIFO_MAX}`;
+      if (photoCount !== undefined) sr.getElementById('photoCount').textContent = `${photoCount} / ${fifoMax}`;
     } catch (err) {
       console.error('[GeoCamera/settings] refresh error', err?.message);
     }

@@ -2,7 +2,7 @@ const DB_NAME = 'geocamera';
 const DB_VERSION = 1;
 const STORE_PHOTOS = 'photos_index';
 const STORE_CONFIG = 'config';
-export const FIFO_MAX = 6;
+export const FIFO_MAX = 6; // compile-time default; runtime uses getFifoMax()
 
 /** @typedef {{ id: string, filename: string, thumbnailBlob: Blob, latitude: number, longitude: number, accuracyMeters: number, plusCode: string, capturedAt: string, syncStatus: 'local'|'pending'|'synced'|'error' }} PhotoEntry */
 
@@ -47,8 +47,20 @@ function promisify(req) {
   });
 }
 
+export async function getFifoMax() {
+  await openDB();
+  const row = await promisify(tx(STORE_CONFIG, 'readonly').get('fifoMax'));
+  const val = row?.value;
+  return (typeof val === 'number' && val >= 6) ? val : FIFO_MAX;
+}
+
+export async function setFifoMax(n) {
+  const clamped = Math.max(6, Math.min(50, Math.round(n)));
+  return setConfig('fifoMax', clamped);
+}
+
 /**
- * Adds a photo to the index, enforcing FIFO-6.
+ * Adds a photo to the index, enforcing the configured FIFO limit.
  * @param {Omit<PhotoEntry, 'syncStatus'>} entry
  */
 export async function addPhoto(entry) {
@@ -56,10 +68,10 @@ export async function addPhoto(entry) {
   const store = tx(STORE_PHOTOS, 'readwrite');
   await promisify(store.put({ ...entry, syncStatus: 'local' }));
 
-  // Enforce FIFO — remove oldest if over limit
+  const max = await getFifoMax();
   const all = await listPhotos();
-  if (all.length > FIFO_MAX) {
-    const toDelete = all.slice(FIFO_MAX);
+  if (all.length > max) {
+    const toDelete = all.slice(max);
     const delStore = tx(STORE_PHOTOS, 'readwrite');
     for (const old of toDelete) {
       await promisify(delStore.delete(old.id));

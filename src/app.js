@@ -10,7 +10,7 @@ import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { geo } from './geo.js';
 import { saveCapture } from './downloader.js';
-import { listPhotos, getConfig, FIFO_MAX } from './db.js';
+import { listPhotos, getConfig, getFifoMax } from './db.js';
 import { processQueue } from './sync.js';
 
 // ── App config state ──────────────────────────────────────────
@@ -171,12 +171,13 @@ async function handleSave(e) {
     await saveCapture(canvas, fix);
     const photos = await listPhotos();
     console.log('[GeoCamera/save] OK — total in DB:', photos.length);
+    const fifoMax = await getFifoMax();
     await screenEls.get('list').refresh(photos);
     screenEls.get('map').syncPhotos(photos);
     show('camera');
-    screenEls.get('toast').show(`Guardada — ${photos.length}/${FIFO_MAX}`);
+    screenEls.get('toast').show(`Guardada — ${photos.length}/${fifoMax}`);
     screenEls.get('camera').startCamera();
-    screenEls.get('camera').updateCounter(photos.length, FIFO_MAX);
+    screenEls.get('camera').updateCounter(photos.length, fifoMax);
   } catch (err) {
     console.error('[GeoCamera/save] FAILURE', err?.message, err?.stack);
     screenEls.get('toast').show('Error al guardar', 2000, 'error');
@@ -231,8 +232,8 @@ geo.addEventListener('error', (e) => {
 
 async function refreshCounter() {
   try {
-    const photos = await listPhotos();
-    screenEls.get('camera').updateCounter(photos.length, FIFO_MAX);
+    const [photos, fifoMax] = await Promise.all([listPhotos(), getFifoMax()]);
+    screenEls.get('camera').updateCounter(photos.length, fifoMax);
   } catch (err) {
     console.error('[GeoCamera/counter]', err?.message);
   }
