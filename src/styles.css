@@ -18,8 +18,8 @@
 
 html {
   height: 100%;
-  /* Prevent double-tap zoom on iOS without killing accessibility */
-  touch-action: manipulation;
+  /* pan-x pan-y: allow scroll but block pinch-to-zoom in WebView */
+  touch-action: pan-x pan-y;
   -webkit-text-size-adjust: 100%;
   /* Disable text selection across all UI — native-app feel */
   user-select: none;
