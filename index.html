@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- Leaflet tiles come from CARTO CDN — must be allowed in img-src.
+       This meta tag covers PWA standalone (service-worker cache) where
+       HTTP response headers are absent. The dev/preview server sets the
+       same policy via vite.config.js server.headers. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; style-src 'self' 'unsafe-inline'; worker-src 'self'; connect-src 'self'">
 
   <!-- PWA / iOS -->
   <meta name="theme-color" content="#0B0E11">
