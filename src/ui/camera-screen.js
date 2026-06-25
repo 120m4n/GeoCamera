@@ -1,4 +1,4 @@
-import { camera } from '../camera.js';
+import { camera, fromFile } from '../camera.js';
 import { HIGH_ACCURACY_THRESHOLD } from '../geo.js';
 
 const _svg = (d) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -7,6 +7,7 @@ const ICON = {
   settings: _svg('<path d="M20 7H9"/><path d="M14 17H3"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>'),
   grid:     _svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
   rotateCw: _svg('<path d="M21 2v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/>'),
+  image:    _svg('<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>'),
 };
 
 const template = document.createElement('template');
@@ -265,7 +266,8 @@ template.innerHTML = `
 
   <div class="bottom-controls">
     <div class="controls-row">
-      <div class="side-btn" id="galleryBtn" title="Ver capturas">${ICON.grid}</div>
+      <div class="side-btn" id="attachBtn" title="Adjuntar imagen">${ICON.image}</div>
+      <input type="file" accept="image/*" id="fileInput" style="display:none">
       <div class="shutter-btn disabled" id="shutterBtn">
         <div class="shutter-inner"></div>
       </div>
@@ -299,7 +301,8 @@ export class CameraScreen extends HTMLElement {
     sr.getElementById('flipBtn').addEventListener('click', () => this.#onFlip());
     sr.getElementById('standbyBtn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('nav', { detail: 'standby', bubbles: true, composed: true })));
     sr.getElementById('listBtn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('nav', { detail: 'list', bubbles: true, composed: true })));
-    sr.getElementById('galleryBtn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('nav', { detail: 'list', bubbles: true, composed: true })));
+    sr.getElementById('attachBtn').addEventListener('click', () => this.#onAttach());
+    sr.getElementById('fileInput').addEventListener('change', e => this.#onFileSelected(e));
     sr.getElementById('settingsBtn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('nav', { detail: 'settings', bubbles: true, composed: true })));
     sr.getElementById('retryBtn').addEventListener('click', () => this.startCamera());
   }
@@ -328,6 +331,15 @@ export class CameraScreen extends HTMLElement {
 
     try {
       await camera.start(video);
+
+      // stopCamera() may have been called while camera.start() was in-flight
+      // (e.g. appStateChange, standbyTimer, or navigation). Calling stop() here
+      // prevents the native plugin from remaining in a started state with no
+      // corresponding JS owner — which corrupts subsequent captures.
+      if (this.#startSeq !== seq) {
+        camera.stop();
+        return;
+      }
 
       if (camera.isNative) {
         video.style.display = 'none';
@@ -411,6 +423,26 @@ export class CameraScreen extends HTMLElement {
       }));
     } finally {
       btn.classList.remove('disabled');
+    }
+  }
+
+  #onAttach() {
+    this.shadowRoot.getElementById('fileInput').click();
+  }
+
+  async #onFileSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset so the same file can be re-selected
+    if (!file) return;
+    try {
+      const { canvas, exifGps } = await fromFile(file);
+      this.dispatchEvent(new CustomEvent('file-import', {
+        detail: { canvas, exifGps },
+        bubbles: true,
+        composed: true,
+      }));
+    } catch (err) {
+      console.error('[GeoCamera/attach]', err?.message);
     }
   }
 

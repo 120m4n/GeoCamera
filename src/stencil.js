@@ -93,9 +93,11 @@ export async function applyStencil(canvas, fix, logoBlob, config) {
     ctx.fillStyle = '#F5F3EF';
     ctx.fillText(`${fix.lat.toFixed(6)}, ${fix.lon.toFixed(6)}`, padX, textY);
 
-    const accText = `±${fix.accuracy}m`;
-    ctx.fillStyle = '#3DDC84';
-    ctx.fillText(accText, effectiveW - padX - ctx.measureText(accText).width, textY);
+    if (fix.accuracy != null) {
+      const accText = `±${fix.accuracy}m`;
+      ctx.fillStyle = '#3DDC84';
+      ctx.fillText(accText, effectiveW - padX - ctx.measureText(accText).width, textY);
+    }
 
     // Row 2: Plus Code
     ctx.font = `${fMeta}px ${TEXT_MONO}`;

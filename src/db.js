@@ -61,22 +61,35 @@ export async function setFifoMax(n) {
 
 /**
  * Adds a photo to the index, enforcing the configured FIFO limit.
+ * Put + list + delete run inside a single readwrite transaction so concurrent
+ * saves cannot cause the FIFO count to drift.
  * @param {Omit<PhotoEntry, 'syncStatus'>} entry
  */
 export async function addPhoto(entry) {
   await openDB();
-  const store = tx(STORE_PHOTOS, 'readwrite');
-  await promisify(store.put({ ...entry, syncStatus: 'local' }));
+  const max = await getFifoMax(); // config store — separate read-only tx, fine
 
-  const max = await getFifoMax();
-  const all = await listPhotos();
-  if (all.length > max) {
-    const toDelete = all.slice(max);
-    const delStore = tx(STORE_PHOTOS, 'readwrite');
-    for (const old of toDelete) {
-      await promisify(delStore.delete(old.id));
-    }
-  }
+  await new Promise((resolve, reject) => {
+    const transaction = _db.transaction(STORE_PHOTOS, 'readwrite');
+    const store = transaction.objectStore(STORE_PHOTOS);
+    transaction.onerror = () => reject(transaction.error);
+    transaction.oncomplete = () => resolve();
+
+    const putReq = store.put({ ...entry, syncStatus: 'local' });
+    putReq.onerror = () => reject(putReq.error);
+    putReq.onsuccess = () => {
+      // Collect all entries (newest-first) within the same transaction
+      const cursorReq = store.index('capturedAt').openCursor(null, 'prev');
+      const all = [];
+      cursorReq.onerror = () => reject(cursorReq.error);
+      cursorReq.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) { all.push(cursor.value); cursor.continue(); return; }
+        // Cursor exhausted — delete any entries beyond the limit
+        for (const old of all.slice(max)) store.delete(old.id);
+      };
+    };
+  });
 }
 
 /**

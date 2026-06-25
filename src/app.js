@@ -9,6 +9,7 @@ import './ui/toast.js';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { geo } from './geo.js';
+import { encode as encodePlusCode } from './pluscode.js';
 import { saveCapture } from './downloader.js';
 import { listPhotos, getConfig, getFifoMax } from './db.js';
 import { processQueue } from './sync.js';
@@ -186,6 +187,43 @@ async function handleSave(e) {
   }
 }
 
+// ── File import → review ──────────────────────────────────────
+async function handleFileImport(e) {
+  try {
+    const { canvas, exifGps } = e.detail;
+
+    // Option A: prefer GPS embedded in the image file; fall back to current device fix
+    let fix = geo.lastFix;
+    if (exifGps) {
+      fix = {
+        lat:      exifGps.lat,
+        lon:      exifGps.lon,
+        accuracy: null, // unknown from EXIF — stencil omits the ± badge
+        plusCode: encodePlusCode(exifGps.lat, exifGps.lon, 10),
+        ts:       new Date().toISOString(),
+      };
+    }
+    console.log('[GeoCamera/file-import] canvas', canvas?.width, 'x', canvas?.height,
+      '| gps source:', exifGps ? 'exif' : (fix ? 'device' : 'none'));
+
+    clearStandbyTimer();
+    screenEls.get('camera').stopCamera();
+    show('review');
+
+    await screenEls.get('review').setCapture(canvas, fix, {
+      logoBlob:        appConfig.logoBlob,
+      showWatermark:   appConfig.showWatermark,
+      logoPosition:    appConfig.logoPosition,
+      logoAlpha:       appConfig.logoAlpha,
+      stencilPosition: appConfig.stencilPosition,
+      stencilAlpha:    appConfig.stencilAlpha,
+    });
+  } catch (err) {
+    console.error('[GeoCamera/file-import]', err?.message);
+    screenEls.get('toast')?.show('Error al cargar imagen', 2000, 'error');
+  }
+}
+
 // ── Discard ───────────────────────────────────────────────────
 function handleDiscard() {
   show('camera');
@@ -279,6 +317,7 @@ async function boot() {
 
     document.addEventListener('nav', handleNav);
     document.addEventListener('capture', handleCapture);
+    document.addEventListener('file-import', handleFileImport);
     document.addEventListener('save', handleSave);
     document.addEventListener('discard', handleDiscard);
     document.addEventListener('logo-changed', handleLogoChanged);
